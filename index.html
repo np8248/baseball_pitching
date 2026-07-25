@@ -141,17 +141,8 @@
   td input:focus { outline: none; background: var(--accent-soft); }
   td input::placeholder { color: #b8c5d6; }
 
-  /* ---- results (output block) ---- */
-  .results {
-    display: grid;
-    grid-template-columns: minmax(170px, 2.2fr) 1fr 1fr;
-    grid-template-rows: auto auto;
-    gap: 16px; margin-top: 16px; align-items: stretch;
-  }
-  .results #go { grid-column: 1; grid-row: 1 / span 2; height: 100%; }
-  .results .recs-panel { grid-column: 2 / span 2; grid-row: 1; }
-  .results .map-panel { grid-row: 2; }
-  .map-panel { display: flex; flex-direction: column; }
+  /* ---- recommendations ---- */
+  .go-row { display: grid; grid-template-columns: minmax(180px, 3fr) 9fr; gap: 16px; margin-top: 16px; align-items: stretch; }
   #go {
     background: var(--accent); color: var(--accent-ink); border: none; border-radius: var(--radius);
     font-size: 46px; font-weight: 800; letter-spacing: 1px; display: flex; flex-direction: column;
@@ -178,6 +169,7 @@
   .badge.live { background: var(--accent-soft); color: var(--accent); border: 1px solid #c7d4f7; }
 
   /* ---- output maps ---- */
+  .maps-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
   .mini-grid { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr); aspect-ratio: 1 / 1; max-width: 240px; margin: 4px auto 0; gap: 0; }
   .mini-cell { border: 1px solid transparent; position: relative; }
   .mini-cell.inzone { border-color: #b8c5d6; background: rgba(29,78,216,.04); }
@@ -192,10 +184,7 @@
   .mini-plate svg { opacity: .3; }
 
   @media (max-width: 900px) {
-    .grid-main, .row2 { grid-template-columns: 1fr; }
-    .results { grid-template-columns: 1fr 1fr; }
-    .results #go { grid-column: 1 / span 2; grid-row: auto; }
-    .results .recs-panel { grid-column: 1 / span 2; grid-row: auto; }
+    .grid-main, .go-row, .row2 { grid-template-columns: 1fr; }
     #go { padding: 22px; font-size: 38px; }
   }
 </style>
@@ -304,10 +293,9 @@
     </div>
   </div>
 
-  <div class="results">
+  <div class="go-row">
     <button id="go">GO<small>Get next pitch</small></button>
-
-    <section class="panel recs-panel">
+    <section class="panel">
       <div class="panel-head">
         <div class="panel-title">Next Pitch Recommendations</div>
         <span class="badge demo" id="engineBadge">Awaiting Spec</span>
@@ -317,8 +305,10 @@
         <div class="rec-empty">Set the pitcher's averages, mark the last pitch, then press GO.</div>
       </div>
     </section>
+  </div>
 
-    <section class="panel map-panel">
+  <div class="maps-row" id="mapsRow">
+    <section class="panel">
       <div class="panel-head">
         <div class="panel-title">Last Pitch</div>
         <div class="panel-hint">where it was thrown</div>
@@ -326,8 +316,7 @@
       <div class="mini-grid" id="mapLast"></div>
       <div class="mini-plate"><svg width="70" height="20" viewBox="0 0 90 26"><path d="M6 2 H84 L84 10 L45 24 L6 10 Z" fill="none" stroke="#7c8b99" stroke-width="2"/></svg></div>
     </section>
-
-    <section class="panel map-panel">
+    <section class="panel">
       <div class="panel-head">
         <div class="panel-title">Throw Next</div>
         <div class="panel-hint">ranked target spots</div>
