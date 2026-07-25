@@ -183,9 +183,46 @@
   .mini-plate { display: flex; justify-content: center; margin-top: 6px; }
   .mini-plate svg { opacity: .3; }
 
+  /* ---- pitcher summary card ---- */
+  .pitcher-card { cursor: pointer; }
+  .pitcher-card:hover { border-color: #b8c5d6; }
+  .pitcher-name { font-size: 20px; font-weight: 800; color: var(--ink); }
+  .pitcher-sub { color: var(--dim); font-size: 13px; font-weight: 700; margin-top: 2px; }
+  .pitcher-meta { margin-top: 10px; display: flex; gap: 8px; flex-wrap: wrap; }
+  .chip { font-size: 11px; font-weight: 800; letter-spacing: .4px; padding: 5px 10px; border-radius: 999px; background: var(--panel-2); border: 1px solid var(--line); color: var(--dim); }
+  .chip.set { background: var(--accent-soft); border-color: #c7d4f7; color: var(--accent); }
+  .gear-btn { display: inline-flex; align-items: center; gap: 8px; }
+  .gear-btn svg { width: 16px; height: 16px; }
+
+  /* ---- settings modal ---- */
+  .modal-overlay {
+    position: fixed; inset: 0; z-index: 60; background: rgba(15,23,42,.45);
+    display: flex; align-items: flex-start; justify-content: center;
+    padding: 40px 16px; overflow-y: auto; -webkit-backdrop-filter: blur(3px); backdrop-filter: blur(3px);
+  }
+  .modal-overlay[hidden] { display: none; }
+  .modal {
+    background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius);
+    box-shadow: 0 24px 70px rgba(15,23,42,.28); width: 100%; max-width: 580px; padding: 20px 20px 18px;
+  }
+  .modal-head { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+  .modal-head .gear { color: var(--accent); display: flex; }
+  .modal-head .gear svg { width: 20px; height: 20px; }
+  .modal-title { font-size: 15px; font-weight: 800; letter-spacing: .3px; color: var(--ink); }
+  .modal-x { margin-left: auto; padding: 6px 12px; }
+  .field { margin-bottom: 16px; }
+  .field > label { display: block; font-size: 10px; letter-spacing: 1.4px; text-transform: uppercase; color: var(--dim); font-weight: 800; margin-bottom: 6px; }
+  .field input.text {
+    width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 12px;
+    background: var(--panel-2); font: inherit; font-weight: 700; color: var(--ink);
+  }
+  .field input.text:focus { outline: none; border-color: var(--accent); background: #fff; }
+  #closeSettings { width: 100%; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-size: 15px; padding: 14px; box-shadow: 0 4px 14px rgba(29,78,216,.22); }
+
   @media (max-width: 900px) {
-    .grid-main, .go-row, .row2 { grid-template-columns: 1fr; }
+    .grid-main, .go-row, .row2, .maps-row { grid-template-columns: 1fr; }
     #go { padding: 22px; font-size: 38px; }
+    .modal-overlay { padding: 20px 12px; }
   }
 </style>
 </head>
@@ -196,6 +233,7 @@
     <div class="logo">Pitch<b>Call</b></div>
     <div class="subtitle">In-Game Pitch Caller</div>
     <div class="bar-actions">
+      <button class="gear-btn" id="openSettings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Pitcher Settings</button>
       <button class="ghost" id="newAtBat">New At-Bat</button>
       <button class="warn" id="fullReset">Full Reset</button>
     </div>
@@ -245,12 +283,11 @@
           </div>
         </section>
 
-        <section class="panel">
-          <div class="panel-head"><div class="panel-title">Pitcher Handedness</div></div>
-          <div class="seg" id="pitchHand">
-            <button data-hand="L">Left</button>
-            <button data-hand="R" class="on">Right</button>
-          </div>
+        <section class="panel pitcher-card" id="pitcherCard">
+          <div class="panel-head"><div class="panel-title">Pitcher</div><div class="panel-hint">tap to edit</div></div>
+          <div class="pitcher-name" id="pitcherNameDisp">Unnamed Pitcher</div>
+          <div class="pitcher-sub" id="pitcherHandDisp">Right-handed</div>
+          <div class="pitcher-meta"><span class="chip" id="arsenalChip">0 pitches set</span></div>
         </section>
       </div>
     </div>
@@ -276,19 +313,6 @@
           <div class="panel-hint">auto-sets velo from pitcher averages</div>
         </div>
         <div class="pt-grid" id="ptGrid"></div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head">
-          <div class="panel-title">Pitcher Average Movements</div>
-          <div class="panel-hint">set pregame &middot; tap any cell</div>
-        </div>
-        <table>
-          <thead>
-            <tr><th>Pitch</th><th>Velo</th><th>Vert</th><th>Horz</th></tr>
-          </thead>
-          <tbody id="avgBody"></tbody>
-        </table>
       </section>
     </div>
   </div>
@@ -328,6 +352,41 @@
 
 </div>
 
+<div class="modal-overlay" id="settingsModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Pitcher Settings">
+    <div class="modal-head">
+      <span class="gear"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></span>
+      <div class="modal-title">Pitcher Settings</div>
+      <button class="ghost modal-x" id="settingsX">Close</button>
+    </div>
+
+    <div class="field">
+      <label for="pitcherName">Pitcher Name</label>
+      <input class="text" type="text" id="pitcherName" placeholder="e.g. John Doe" autocomplete="off">
+    </div>
+
+    <div class="field">
+      <label>Pitcher Handedness</label>
+      <div class="seg" id="pitchHand">
+        <button data-hand="L">Left</button>
+        <button data-hand="R" class="on">Right</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Average Movements &middot; set pregame</label>
+      <table>
+        <thead>
+          <tr><th>Pitch</th><th>Velo</th><th>Vert</th><th>Horz</th></tr>
+        </thead>
+        <tbody id="avgBody"></tbody>
+      </table>
+    </div>
+
+    <button id="closeSettings">Close Settings</button>
+  </div>
+</div>
+
 <script>
 "use strict";
 
@@ -336,6 +395,7 @@ const PITCH_TYPES = ["4 Seam", "Sinker", "Cutter", "Gyro", "Sweeper", "Curve", "
 const state = {
   batterHand: "R",
   pitcherHand: "R",
+  pitcherName: "",
   timing: "unknown",
   lastPitchType: null,
   velo: 94,
@@ -353,7 +413,8 @@ const STORE_KEY = "pitchcall.v1";
 function save() {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify({
-      averages: state.averages, pitcherHand: state.pitcherHand, batterHand: state.batterHand
+      averages: state.averages, pitcherHand: state.pitcherHand, batterHand: state.batterHand,
+      pitcherName: state.pitcherName
     }));
   } catch (e) { /* private browsing */ }
 }
@@ -365,6 +426,7 @@ function load() {
     if (d.averages) Object.keys(state.averages).forEach(k => { if (d.averages[k]) state.averages[k] = d.averages[k]; });
     if (d.pitcherHand) state.pitcherHand = d.pitcherHand;
     if (d.batterHand) state.batterHand = d.batterHand;
+    if (typeof d.pitcherName === "string") state.pitcherName = d.pitcherName;
   } catch (e) { /* corrupt */ }
 }
 
@@ -443,6 +505,7 @@ function buildTable() {
         state.averages[p][field] = v;
         markRow(tr, p);
         renderPitchTypes(); // update pitch-button has-data state live
+        updatePitcherCard();
         save();
       });
       input.addEventListener("blur", () => { input.value = formatField(state.averages[p][field], field); });
@@ -508,8 +571,37 @@ pitchHand.addEventListener("click", e => {
   if (!b) return;
   state.pitcherHand = b.dataset.hand;
   [...pitchHand.children].forEach(x => x.classList.toggle("on", x === b));
+  updatePitcherCard();
   save();
 });
+
+/* ---------------- pitcher settings card + modal ---------------- */
+const pitcherNameInput = document.getElementById("pitcherName");
+const pitcherNameDisp = document.getElementById("pitcherNameDisp");
+const pitcherHandDisp = document.getElementById("pitcherHandDisp");
+const arsenalChip = document.getElementById("arsenalChip");
+pitcherNameInput.addEventListener("input", () => {
+  state.pitcherName = pitcherNameInput.value;
+  updatePitcherCard();
+  save();
+});
+function updatePitcherCard() {
+  pitcherNameDisp.textContent = state.pitcherName.trim() || "Unnamed Pitcher";
+  pitcherHandDisp.textContent = state.pitcherHand === "L" ? "Left-handed" : "Right-handed";
+  const n = PITCH_TYPES.filter(p => state.averages[p] && state.averages[p].velo != null).length;
+  arsenalChip.textContent = n + (n === 1 ? " pitch set" : " pitches set");
+  arsenalChip.classList.toggle("set", n > 0);
+}
+
+const settingsModal = document.getElementById("settingsModal");
+function openSettings() { settingsModal.hidden = false; }
+function closeSettings() { settingsModal.hidden = true; }
+document.getElementById("openSettings").addEventListener("click", openSettings);
+document.getElementById("pitcherCard").addEventListener("click", openSettings);
+document.getElementById("settingsX").addEventListener("click", closeSettings);
+document.getElementById("closeSettings").addEventListener("click", closeSettings);
+settingsModal.addEventListener("click", e => { if (e.target === settingsModal) closeSettings(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !settingsModal.hidden) closeSettings(); });
 
 /* ---------------- timing ---------------- */
 const timingSeg = document.getElementById("timing");
@@ -751,6 +843,8 @@ function renderMaps() {
 function renderAll() {
   renderZone(); renderPitchTypes(); renderBatterHand(); renderCount(); renderRecs(); renderMaps();
   setVelo(state.velo);
+  pitcherNameInput.value = state.pitcherName;
+  updatePitcherCard();
   [...pitchHand.children].forEach(x => x.classList.toggle("on", x.dataset.hand === state.pitcherHand));
   [...timingSeg.children].forEach(x => x.classList.toggle("on", x.dataset.t === state.timing));
 }
