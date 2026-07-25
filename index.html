@@ -74,15 +74,15 @@
   .hand-rail:hover { border-color: #b8c5d6; }
   .hand-rail.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); box-shadow: 0 2px 10px rgba(29,78,216,.25); }
 
-  .zone-grid { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr); aspect-ratio: 1 / 1.06; gap: 0; position: relative; }
-  .zcell { border: 1px solid transparent; position: relative; cursor: pointer; }
+  .zone-grid { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr); aspect-ratio: 1 / 1.06; gap: 0; position: relative; touch-action: none; }
+  .zcell { border: 1px solid transparent; position: relative; }
   .zcell.inzone { border-color: #b8c5d6; background: rgba(29,78,216,.035); }
-  .zcell:active { background: rgba(29,78,216,.12); }
-  .zcell .dot {
-    position: absolute; inset: 0; margin: auto; width: 20px; height: 20px; border-radius: 50%;
-    background: #eab308; box-shadow: 0 0 0 3px rgba(234,179,8,.22); display: none;
+  .zone-dot {
+    position: absolute; width: 22px; height: 22px; border-radius: 50%;
+    background: #eab308; box-shadow: 0 0 0 3px rgba(234,179,8,.22);
+    transform: translate(-50%, -50%); pointer-events: none; display: none; z-index: 3;
   }
-  .zcell.marked .dot { display: block; }
+  .zone-dot.show { display: block; }
   .plate { display: flex; justify-content: center; margin-top: 8px; }
   .plate svg { opacity: .35; }
 
@@ -171,16 +171,18 @@
   /* ---- output maps ---- */
   .maps-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
   .col .maps-row { margin-top: 0; }
-  .mini-grid { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr); aspect-ratio: 1 / 1; max-width: 240px; margin: 4px auto 0; gap: 0; }
+  .mini-grid { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr); aspect-ratio: 1 / 1; max-width: 240px; margin: 4px auto 0; gap: 0; position: relative; }
   .mini-cell { border: 1px solid transparent; position: relative; }
   .mini-cell.inzone { border-color: #b8c5d6; background: rgba(29,78,216,.04); }
-  .mini-cell .dot {
-    position: absolute; inset: 0; margin: auto; width: 26px; height: 26px; border-radius: 50%;
-    display: none; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: #fff;
+  .map-dots { position: absolute; inset: 0; pointer-events: none; z-index: 3; }
+  .map-dot {
+    position: absolute; width: 26px; height: 26px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: #fff;
+    transform: translate(-50%, -50%);
   }
-  .mini-cell.mark-last .dot { display: flex; background: #eab308; box-shadow: 0 0 0 3px rgba(234,179,8,.22); }
-  .mini-cell.mark-strike .dot { display: flex; background: var(--accent); box-shadow: 0 0 0 3px rgba(29,78,216,.18); }
-  .mini-cell.mark-chase .dot { display: flex; background: var(--chase); box-shadow: 0 0 0 3px rgba(217,119,6,.18); }
+  .map-dot.last { background: #eab308; box-shadow: 0 0 0 3px rgba(234,179,8,.22); }
+  .map-dot.strike { background: var(--accent); box-shadow: 0 0 0 3px rgba(29,78,216,.18); }
+  .map-dot.chase { background: var(--chase); box-shadow: 0 0 0 3px rgba(217,119,6,.18); }
   .mini-plate { display: flex; justify-content: center; margin-top: 6px; }
   .mini-plate svg { opacity: .3; }
 
@@ -403,7 +405,7 @@ const state = {
   velo: 94,
   balls: 0,
   strikes: 0,
-  lastLoc: null,            // {col, row} on the 5x5 grid, 0-indexed from top-left
+  lastLoc: null,            // {x, y} on the 5x5 grid in fractional cell units (0..5), free placement
   averages: {},             // pitchType -> {velo, vert, horz}
   recommendations: []
 };
@@ -442,21 +444,38 @@ for (let row = 0; row < 5; row++) {
   for (let col = 0; col < 5; col++) {
     const cell = document.createElement("div");
     cell.className = "zcell" + (row >= 1 && row <= 3 && col >= 1 && col <= 3 ? " inzone" : "");
-    cell.dataset.col = col;
-    cell.dataset.row = row;
-    cell.innerHTML = '<div class="dot"></div>';
-    cell.addEventListener("click", () => {
-      state.lastLoc = { col, row };
-      renderZone();
-    });
     zoneGrid.appendChild(cell);
   }
 }
+const zoneDot = document.createElement("div");
+zoneDot.className = "zone-dot";
+zoneGrid.appendChild(zoneDot);
+
+function clamp(v, a, b) { return Math.max(a, Math.min(b, v)); }
+function setLocFromEvent(e) {
+  const rect = zoneGrid.getBoundingClientRect();
+  const x = clamp((e.clientX - rect.left) / rect.width * 5, 0, 5);
+  const y = clamp((e.clientY - rect.top) / rect.height * 5, 0, 5);
+  state.lastLoc = { x, y };
+  renderZone();
+}
+let dragging = false;
+zoneGrid.addEventListener("pointerdown", e => {
+  dragging = true; try { zoneGrid.setPointerCapture(e.pointerId); } catch (err) {}
+  setLocFromEvent(e);
+});
+zoneGrid.addEventListener("pointermove", e => { if (dragging) setLocFromEvent(e); });
+zoneGrid.addEventListener("pointerup", () => { dragging = false; });
+zoneGrid.addEventListener("pointercancel", () => { dragging = false; });
+
 function renderZone() {
-  [...zoneGrid.children].forEach(c => {
-    const hit = state.lastLoc && +c.dataset.col === state.lastLoc.col && +c.dataset.row === state.lastLoc.row;
-    c.classList.toggle("marked", !!hit);
-  });
+  if (state.lastLoc) {
+    zoneDot.classList.add("show");
+    zoneDot.style.left = (state.lastLoc.x / 5 * 100) + "%";
+    zoneDot.style.top = (state.lastLoc.y / 5 * 100) + "%";
+  } else {
+    zoneDot.classList.remove("show");
+  }
 }
 
 /* ---------------- pitch type buttons ---------------- */
@@ -780,7 +799,26 @@ function scorePitch(pitch) {
   if (isPitchersCount && (fam === "breaking" || fam === "offspeed")) intent = "chase";
   if (isHittersCount) intent = "strike";
 
-  return { type: pitch, score: Math.round(score), col, row, intent, locationName: locName(col, row, bh) };
+  // sub-cell precision: place the dot at an exact spot, not just the cell center
+  let x = col + 0.5, y = row + 0.5;
+  if (isPitchersCount && intent === "chase") {
+    // push chase pitches further off the zone
+    if (col <= 1) x = col + 0.25;
+    if (col >= 3) x = col + 0.75;
+    if (row <= 1) y = row + 0.25;
+    if (row >= 3) y = row + 0.75;
+  } else if (isHittersCount) {
+    // pull must-throw-strike pitches toward the catchable heart edge
+    x = x + (2.5 - x) * 0.20;
+    y = y + (2.5 - y) * 0.20;
+  } else {
+    if (pitch === "4 Seam") y = Math.max(0.35, y - 0.15);            // live at the top
+    if (pitch === "Curve" || pitch === "Split" || pitch === "Change") y = Math.min(4.7, y + 0.15); // down/below
+  }
+  x = clamp(x, 0.1, 4.9);
+  y = clamp(y, 0.1, 4.9);
+
+  return { type: pitch, score: Math.round(score), col, row, x, y, intent, locationName: locName(col, row, bh) };
 }
 
 function recommend() {
@@ -832,33 +870,32 @@ function buildMini(container) {
     for (let col = 0; col < 5; col++) {
       const cell = document.createElement("div");
       cell.className = "mini-cell" + (row >= 1 && row <= 3 && col >= 1 && col <= 3 ? " inzone" : "");
-      cell.dataset.col = col; cell.dataset.row = row;
-      cell.innerHTML = '<div class="dot"></div>';
       container.appendChild(cell);
     }
   }
-}
-function miniCell(container, col, row) {
-  return [...container.children].find(c => +c.dataset.col === col && +c.dataset.row === row);
-}
-function clearMini(container) {
-  [...container.children].forEach(c => {
-    c.classList.remove("mark-last", "mark-strike", "mark-chase");
-    c.querySelector(".dot").textContent = "";
-  });
+  const dots = document.createElement("div");
+  dots.className = "map-dots";
+  container.appendChild(dots);
 }
 function renderMaps() {
-  clearMini(mapLast);
+  const ld = mapLast.querySelector(".map-dots");
+  ld.innerHTML = "";
   if (state.lastLoc) {
-    const c = miniCell(mapLast, state.lastLoc.col, state.lastLoc.row);
-    if (c) c.classList.add("mark-last");
+    const d = document.createElement("div");
+    d.className = "map-dot last";
+    d.style.left = (state.lastLoc.x / 5 * 100) + "%";
+    d.style.top = (state.lastLoc.y / 5 * 100) + "%";
+    ld.appendChild(d);
   }
-  clearMini(mapNext);
+  const nd = mapNext.querySelector(".map-dots");
+  nd.innerHTML = "";
   (state.recommendations || []).forEach((r, i) => {
-    const c = miniCell(mapNext, r.col, r.row);
-    if (!c || c.classList.contains("mark-strike") || c.classList.contains("mark-chase")) return;
-    c.classList.add(r.intent === "chase" ? "mark-chase" : "mark-strike");
-    c.querySelector(".dot").textContent = String(i + 1);
+    const d = document.createElement("div");
+    d.className = "map-dot " + (r.intent === "chase" ? "chase" : "strike");
+    d.style.left = (r.x / 5 * 100) + "%";
+    d.style.top = (r.y / 5 * 100) + "%";
+    d.textContent = String(i + 1);
+    nd.appendChild(d);
   });
 }
 
