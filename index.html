@@ -123,6 +123,17 @@
   .pt-grid button.has-data.on { color: var(--accent-ink); }
   .pt-grid button.has-data.on::after { background: var(--accent-ink); opacity: .7; }
 
+  /* ---- batter profile ---- */
+  .batter-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+  .batter-grid button { padding: 9px 6px; font-size: 12px; line-height: 1.15; text-align: center; }
+  .batter-grid button .bn { font-weight: 800; display: block; }
+  .batter-grid button .ba { font-size: 10px; color: var(--dim); font-weight: 700; }
+  .batter-grid button.on .ba { color: var(--accent-ink); opacity: .8; }
+  .batter-info { margin-top: 12px; font-size: 12px; color: var(--dim); font-weight: 700; line-height: 1.5; }
+  .batter-info b { color: var(--ink); }
+  .batter-info .hot { color: var(--danger); font-weight: 800; }
+  .batter-info .cold { color: var(--good); font-weight: 800; }
+
   /* ---- table ---- */
   table { width: 100%; border-collapse: separate; border-spacing: 0 6px; }
   th { font-size: 10px; letter-spacing: 1.3px; color: var(--dim); text-transform: uppercase; text-align: center; font-weight: 800; padding-bottom: 4px; }
@@ -264,6 +275,15 @@
       </section>
 
       <section class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Batter Profile</div>
+          <div class="panel-hint">preset &middot; drives first pitch</div>
+        </div>
+        <div class="batter-grid" id="batterGrid"></div>
+        <div class="batter-info" id="batterInfo">Select a batter</div>
+      </section>
+
+      <section class="panel">
         <div class="velo-head">
           <div class="panel-title">Velocity &mdash; Pitch Just Thrown</div>
           <div class="velo-val" id="veloVal">94<span>MPH</span></div>
@@ -396,10 +416,41 @@
 
 const PITCH_TYPES = ["4 Seam", "Sinker", "Cutter", "Gyro", "Sweeper", "Curve", "Split", "Change"];
 
+/* 9 preset batter profiles (same archetypes as the PitchCall Sim).
+   hot = the batter's power zone in {vertical, horizontal} from the batter's
+   perspective. The engine avoids pitching there and attacks the opposite. */
+const BATTERS = [
+  { name: "Marcus Cole",   hand: "R", arch: "Free-Swinger",  hot: { v: "high", h: "close" } },
+  { name: "Diego Reyes",   hand: "R", arch: "Power Hitter",  hot: { v: "mid",  h: "close" } },
+  { name: "Tomo Nakamura", hand: "L", arch: "Patient Eye",   hot: { v: "mid",  h: "mid"   } },
+  { name: "Brett Hogan",   hand: "R", arch: "Pull Hitter",   hot: { v: "high", h: "close" } },
+  { name: "Sal Martinez",  hand: "L", arch: "Contact",       hot: { v: "mid",  h: "mid"   } },
+  { name: "Kwame Adeyemi", hand: "R", arch: "Platoon Slugger", hot: { v: "mid",  h: "far"  } },
+  { name: "Eli Brooks",    hand: "L", arch: "Sitting Soft",  hot: { v: "low",  h: "far"   } },
+  { name: "Hank Olson",    hand: "R", arch: "Slugger",       hot: { v: "mid",  h: "close" } },
+  { name: "Tyler Quinn",   hand: "L", arch: "Table-Setter",  hot: { v: "low",  h: "far"   } },
+];
+function oppZone(z) {
+  if (z === "high") return "low";
+  if (z === "low") return "high";
+  if (z === "close") return "far";
+  if (z === "far") return "close";
+  return "mid";
+}
+function zoneLabel(v, h) {
+  const V = { high: "High", mid: "Mid", low: "Low" }[v];
+  const H = { close: "In", mid: "Middle", far: "Away" }[h];
+  if (v === "mid" && h === "mid") return "Middle-Middle";
+  if (h === "mid") return V;
+  if (v === "mid") return H;
+  return V + " & " + H;
+}
+
 const state = {
   batterHand: "R",
   pitcherHand: "R",
   pitcherName: "",
+  batterIdx: 0,
   timing: "unknown",
   lastPitchType: null,
   velo: 94,
@@ -418,7 +469,7 @@ function save() {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify({
       averages: state.averages, pitcherHand: state.pitcherHand, batterHand: state.batterHand,
-      pitcherName: state.pitcherName
+      pitcherName: state.pitcherName, batterIdx: state.batterIdx
     }));
   } catch (e) { /* private browsing */ }
 }
@@ -431,6 +482,7 @@ function load() {
     if (d.pitcherHand) state.pitcherHand = d.pitcherHand;
     if (d.batterHand) state.batterHand = d.batterHand;
     if (typeof d.pitcherName === "string") state.pitcherName = d.pitcherName;
+    if (typeof d.batterIdx === "number" && d.batterIdx >= 0 && d.batterIdx < BATTERS.length) state.batterIdx = d.batterIdx;
   } catch (e) { /* corrupt */ }
 }
 
@@ -502,6 +554,38 @@ function renderPitchTypes() {
   [...avgBody.children].forEach(tr => {
     tr.classList.toggle("selected", tr.dataset.pitch === state.lastPitchType);
   });
+}
+
+/* ---------------- batter profile ---------------- */
+const batterGrid = document.getElementById("batterGrid");
+const batterInfo = document.getElementById("batterInfo");
+BATTERS.forEach((b, i) => {
+  const btn = document.createElement("button");
+  btn.dataset.bi = i;
+  btn.innerHTML = '<span class="bn"></span><span class="ba"></span>';
+  btn.querySelector(".bn").textContent = b.name.split(" ")[0];
+  btn.querySelector(".ba").textContent = b.arch;
+  btn.addEventListener("click", () => {
+    state.batterIdx = i;
+    state.batterHand = b.hand;           // sync the matchup hand to the preset batter
+    renderBatterGrid();
+    renderBatterHand();
+    renderBatterInfo();
+    save();
+  });
+  batterGrid.appendChild(btn);
+});
+function renderBatterGrid() {
+  [...batterGrid.children].forEach(b => b.classList.toggle("on", +b.dataset.bi === state.batterIdx));
+}
+function renderBatterInfo() {
+  const b = BATTERS[state.batterIdx];
+  if (!b) { batterInfo.innerHTML = "Select a batter"; return; }
+  const hot = b.hot, cold = { v: oppZone(hot.v), h: oppZone(hot.h) };
+  batterInfo.innerHTML =
+    '<b>' + b.name + '</b> (' + b.hand + 'HH) &middot; ' + b.arch + '<br>' +
+    'Hot zone (avoid): <span class="hot">' + zoneLabel(hot.v, hot.h) + '</span> &middot; ' +
+    'Cold zone (attack): <span class="cold">' + zoneLabel(cold.v, cold.h) + '</span>';
 }
 
 /* ---------------- averages table ---------------- */
@@ -815,6 +899,36 @@ function scorePitch(pitch) {
     if (pitch === "4 Seam") y = Math.max(0.35, y - 0.15);            // live at the top
     if (pitch === "Curve" || pitch === "Split" || pitch === "Change") y = Math.min(4.7, y + 0.15); // down/below
   }
+
+  // --- 6. batter profile: avoid the hot zone, attack the cold zone ---
+  //     On the first pitch (0-0, no last pitch) this is the main signal, so it
+  //     carries more weight. The dot is also nudged off the hot zone.
+  const batter = BATTERS[state.batterIdx];
+  if (batter && batter.hot) {
+    const hot = batter.hot;
+    const cold = { v: oppZone(hot.v), h: oppZone(hot.h) };
+    const isFirstPitch = (state.balls === 0 && state.strikes === 0 && !state.lastPitchType);
+    const mult = isFirstPitch ? 1.6 : 1;
+    const zv = row <= 1 ? "high" : row >= 3 ? "low" : "mid";
+    let zh;
+    if (bh === "R") zh = col >= 3 ? "close" : col <= 1 ? "far" : "mid";
+    else zh = col <= 1 ? "close" : col >= 3 ? "far" : "mid";
+    const inHot = (zv === hot.v) && (hot.h === "mid" ? zh === "mid" : zh === hot.h);
+    const inCold = (zv === cold.v) && (cold.h === "mid" ? zh === "mid" : zh === cold.h);
+    if (inHot) {
+      score -= 8 * mult;
+      // nudge the dot toward the cold zone center
+      const cy = cold.v === "high" ? 0.5 : cold.v === "low" ? 4.5 : 2.5;
+      let cx = 2.5;
+      if (bh === "R") cx = cold.h === "close" ? 4.0 : cold.h === "far" ? 1.0 : 2.5;
+      else cx = cold.h === "close" ? 1.0 : cold.h === "far" ? 4.0 : 2.5;
+      x = x + (cx - x) * 0.35;
+      y = y + (cy - y) * 0.35;
+    } else if (inCold) {
+      score += 5 * mult;
+    }
+  }
+
   x = clamp(x, 0.1, 4.9);
   y = clamp(y, 0.1, 4.9);
 
@@ -901,7 +1015,8 @@ function renderMaps() {
 
 /* ---------------- boot ---------------- */
 function renderAll() {
-  renderZone(); renderPitchTypes(); renderBatterHand(); renderCount(); renderRecs(); renderMaps();
+  renderZone(); renderPitchTypes(); renderBatterHand(); renderBatterGrid(); renderBatterInfo();
+  renderCount(); renderRecs(); renderMaps();
   setVelo(state.velo);
   pitcherNameInput.value = state.pitcherName;
   updatePitcherCard();
