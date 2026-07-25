@@ -4,22 +4,25 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="theme-color" content="#0d1117">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#eef2f6">
 <title>PitchCall</title>
 <style>
   :root {
-    --bg: #0d1117;
-    --panel: #161d26;
-    --panel-2: #1c242f;
-    --line: #2a3542;
-    --ink: #e6edf3;
-    --dim: #8b98a5;
-    --accent: #b6f09c;
-    --accent-ink: #16240f;
-    --chase: #f0b95c;
-    --danger: #f0705c;
-    --radius: 14px;
+    --bg: #eef2f6;
+    --panel: #ffffff;
+    --panel-2: #f1f5f9;
+    --line: #d8e0ea;
+    --ink: #1f2937;
+    --dim: #64748b;
+    --accent: #1d4ed8;
+    --accent-ink: #ffffff;
+    --accent-soft: #eaf0ff;
+    --chase: #d97706;
+    --danger: #dc2626;
+    --radius: 16px;
+    --shadow: 0 1px 2px rgba(15,23,42,.04), 0 6px 18px rgba(15,23,42,.06);
+    --shadow-sm: 0 1px 2px rgba(15,23,42,.06);
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body {
@@ -30,116 +33,155 @@
   }
   body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
 
-  .wrap { max-width: 1400px; margin: 0 auto; padding: 14px 16px 22px; }
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 16px 18px 26px; }
 
-  header.bar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
-  .logo { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+  header.bar { display: flex; align-items: center; gap: 14px; margin-bottom: 18px; }
+  .logo { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; color: var(--ink); }
   .logo b { color: var(--accent); }
-  .subtitle { color: var(--dim); font-size: 12px; letter-spacing: 1.6px; text-transform: uppercase; }
+  .subtitle { color: var(--dim); font-size: 11px; letter-spacing: 1.8px; text-transform: uppercase; font-weight: 700; }
   .bar-actions { margin-left: auto; display: flex; gap: 10px; }
 
   button {
-    font: inherit; color: inherit; background: var(--panel-2);
-    border: 1px solid var(--line); border-radius: 11px;
-    padding: 12px 16px; cursor: pointer; transition: background .12s, border-color .12s, transform .06s;
+    font: inherit; color: var(--ink); background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 12px;
+    padding: 11px 16px; cursor: pointer; transition: background .14s, border-color .14s, transform .06s, box-shadow .14s;
+    font-weight: 700;
   }
   button:active { transform: scale(.97); }
+  button:hover { border-color: #b8c5d6; }
   button.ghost { background: transparent; }
-  button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
-  button.warn { color: var(--danger); border-color: #4a2b28; background: #241716; }
+  button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); box-shadow: 0 2px 8px rgba(29,78,216,.22); }
+  button.warn { color: var(--danger); border-color: #f3c9c5; background: #fdf2f2; }
 
-  .grid-main { display: grid; grid-template-columns: minmax(320px, 6fr) minmax(400px, 8fr); gap: 14px; align-items: start; }
-  .col { display: flex; flex-direction: column; gap: 14px; }
+  .grid-main { display: grid; grid-template-columns: minmax(320px, 6fr) minmax(400px, 8fr); gap: 16px; align-items: start; }
+  .col { display: flex; flex-direction: column; gap: 16px; }
 
-  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; }
-  .panel-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
-  .panel-title { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink); }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 16px; box-shadow: var(--shadow); }
+  .panel-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+  .panel-title { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink); font-weight: 800; }
   .panel-hint { margin-left: auto; color: var(--dim); font-size: 11px; font-weight: 600; }
 
   /* ---- zone ---- */
   .zone-row { display: flex; gap: 12px; align-items: stretch; }
-  .zone-stage { flex: 1; border: 1px dashed var(--line); border-radius: 12px; padding: 10px; background: #121922; }
+  .zone-stage { flex: 1; border: 1px solid var(--line); border-radius: 12px; padding: 10px; background: var(--panel-2); }
   .hand-rail {
-    width: 62px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel-2);
+    width: 64px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel);
     display: flex; align-items: center; justify-content: center; cursor: pointer;
     writing-mode: vertical-rl; text-orientation: mixed; letter-spacing: 5px; font-size: 13px;
-    text-transform: uppercase; transition: background .12s, box-shadow .12s;
+    text-transform: uppercase; color: var(--dim); font-weight: 800;
+    transition: background .14s, color .14s, border-color .14s, box-shadow .14s;
   }
-  .hand-rail.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); box-shadow: 0 0 22px rgba(182,240,156,.25); }
+  .hand-rail:hover { border-color: #b8c5d6; }
+  .hand-rail.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); box-shadow: 0 2px 10px rgba(29,78,216,.25); }
 
   .zone-grid { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr); aspect-ratio: 1 / 1.06; gap: 0; position: relative; }
   .zcell { border: 1px solid transparent; position: relative; cursor: pointer; }
-  .zcell.inzone { border-color: #3b4a5c; }
-  .zcell:active { background: rgba(182,240,156,.10); }
+  .zcell.inzone { border-color: #b8c5d6; background: rgba(29,78,216,.035); }
+  .zcell:active { background: rgba(29,78,216,.12); }
   .zcell .dot {
     position: absolute; inset: 0; margin: auto; width: 20px; height: 20px; border-radius: 50%;
-    background: #f5c451; box-shadow: 0 0 16px 4px rgba(245,196,81,.5); display: none;
+    background: #eab308; box-shadow: 0 0 0 3px rgba(234,179,8,.22); display: none;
   }
   .zcell.marked .dot { display: block; }
-  .plate { display: flex; justify-content: center; margin-top: 6px; }
-  .plate svg { opacity: .5; }
+  .plate { display: flex; justify-content: center; margin-top: 8px; }
+  .plate svg { opacity: .35; }
 
   /* ---- velo ---- */
   .velo-head { display: flex; align-items: flex-end; }
-  .velo-val { margin-left: auto; font-size: 34px; font-weight: 800; color: var(--accent); line-height: 1; }
+  .velo-val { margin-left: auto; font-size: 34px; font-weight: 800; color: var(--accent); line-height: 1; transition: transform .15s; }
   .velo-val span { font-size: 13px; color: var(--dim); margin-left: 4px; font-weight: 700; }
-  input[type=range] { width: 100%; margin: 10px 0 2px; accent-color: var(--accent); height: 34px; }
+  .velo-val.pulse { animation: veloPulse .55s ease-out; }
+  @keyframes veloPulse {
+    0%   { transform: scale(1);   background: var(--accent-soft); border-radius: 8px; padding: 2px 8px; }
+    40%  { transform: scale(1.18); }
+    100% { transform: scale(1);   background: transparent; padding: 2px 0; }
+  }
+  input[type=range] { width: 100%; margin: 12px 0 2px; accent-color: var(--accent); height: 34px; }
   .ticks { display: flex; justify-content: space-between; color: var(--dim); font-size: 11px; }
 
   /* ---- small panels row ---- */
-  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
   .stepper { display: flex; gap: 10px; }
   .step-grp { flex: 1; text-align: center; }
-  .step-lbl { font-size: 10px; letter-spacing: 1.4px; color: var(--dim); text-transform: uppercase; margin-bottom: 6px; }
-  .step-ctl { display: flex; align-items: center; justify-content: space-between; background: var(--panel-2); border: 1px solid var(--line); border-radius: 11px; padding: 6px 10px; }
-  .step-ctl button { background: none; border: none; padding: 6px 10px; font-size: 20px; color: var(--dim); }
-  .step-ctl .num { font-size: 24px; font-weight: 800; min-width: 26px; }
+  .step-lbl { font-size: 10px; letter-spacing: 1.4px; color: var(--dim); text-transform: uppercase; margin-bottom: 6px; font-weight: 800; }
+  .step-ctl { display: flex; align-items: center; justify-content: space-between; background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; }
+  .step-ctl button { background: none; border: none; padding: 6px 10px; font-size: 20px; color: var(--dim); box-shadow: none; }
+  .step-ctl button:hover { color: var(--accent); }
+  .step-ctl .num { font-size: 24px; font-weight: 800; min-width: 26px; color: var(--ink); }
 
   .seg { display: flex; gap: 8px; }
   .seg button { flex: 1; }
 
   /* ---- pitch type buttons ---- */
   .pt-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .pt-grid button { position: relative; }
+  .pt-grid button.has-data { border-color: #b8c5d6; color: var(--accent); }
+  .pt-grid button.has-data::after {
+    content: ""; position: absolute; top: 7px; right: 8px; width: 6px; height: 6px;
+    border-radius: 50%; background: var(--accent);
+  }
+  .pt-grid button.has-data.on { color: var(--accent-ink); }
+  .pt-grid button.has-data.on::after { background: var(--accent-ink); opacity: .7; }
 
   /* ---- table ---- */
   table { width: 100%; border-collapse: separate; border-spacing: 0 6px; }
-  th { font-size: 10px; letter-spacing: 1.3px; color: var(--dim); text-transform: uppercase; text-align: center; font-weight: 700; padding-bottom: 2px; }
-  th:first-child { text-align: left; padding-left: 8px; }
+  th { font-size: 10px; letter-spacing: 1.3px; color: var(--dim); text-transform: uppercase; text-align: center; font-weight: 800; padding-bottom: 4px; }
+  th:first-child { text-align: left; padding-left: 10px; }
   td { background: var(--panel-2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); text-align: center; padding: 0; }
-  td:first-child { border-left: 1px solid var(--line); border-radius: 10px 0 0 10px; text-align: left; padding-left: 12px; font-size: 14px; }
-  td:last-child { border-right: 1px solid var(--line); border-radius: 0 10px 10px 0; }
-  tr.filled td:first-child { color: var(--accent); }
+  td:first-child { border-left: 1px solid var(--line); border-radius: 11px 0 0 11px; text-align: left; padding-left: 14px; font-size: 14px; }
+  td:last-child { border-right: 1px solid var(--line); border-radius: 0 11px 11px 0; }
+  tr.filled td:first-child { color: var(--accent); font-weight: 800; }
   tr.empty td:first-child { color: var(--dim); font-weight: 600; }
+  tr.selected td { background: var(--accent-soft); border-color: #c7d4f7; }
+  tr.selected td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
   td input {
-    width: 100%; background: none; border: none; color: inherit; font: inherit; text-align: center;
+    width: 100%; background: none; border: none; color: var(--ink); font: inherit; text-align: center;
     padding: 13px 4px; font-size: 15px; font-weight: 700;
   }
-  td input:focus { outline: none; background: rgba(182,240,156,.08); }
-  td input::placeholder { color: #55626f; }
+  td input:focus { outline: none; background: var(--accent-soft); }
+  td input::placeholder { color: #b8c5d6; }
 
   /* ---- recommendations ---- */
-  .go-row { display: grid; grid-template-columns: minmax(180px, 3fr) 9fr; gap: 14px; margin-top: 14px; align-items: stretch; }
+  .go-row { display: grid; grid-template-columns: minmax(180px, 3fr) 9fr; gap: 16px; margin-top: 16px; align-items: stretch; }
   #go {
     background: var(--accent); color: var(--accent-ink); border: none; border-radius: var(--radius);
     font-size: 46px; font-weight: 800; letter-spacing: 1px; display: flex; flex-direction: column;
-    align-items: center; justify-content: center; gap: 4px; box-shadow: 0 0 34px rgba(182,240,156,.22);
+    align-items: center; justify-content: center; gap: 4px;
+    box-shadow: 0 6px 24px rgba(29,78,216,.28);
   }
-  #go small { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; opacity: .65; }
+  #go:active { transform: scale(.98); }
+  #go small { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; opacity: .7; }
   .badge { font-size: 10px; letter-spacing: 1.2px; padding: 4px 9px; border-radius: 999px; text-transform: uppercase; font-weight: 800; }
-  .badge.demo { background: #3a2d16; color: var(--chase); border: 1px solid #5a4520; }
+  .badge.demo { background: #fff4e0; color: var(--chase); border: 1px solid #f4d9a8; }
   .rec-list { display: flex; flex-direction: column; gap: 8px; }
   .rec {
     display: grid; grid-template-columns: 34px minmax(96px, 2fr) 3fr auto; align-items: center; gap: 12px;
-    background: var(--panel-2); border: 1px solid var(--line); border-radius: 11px; padding: 11px 14px;
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
   }
-  .rec .rank { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--dim); }
-  .rec.top .rank { border-color: var(--accent); color: var(--accent); }
+  .rec .rank { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--dim); background: var(--panel); }
+  .rec.top .rank { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
   .rec .type { font-size: 17px; font-weight: 800; }
   .rec .loc { color: var(--ink); font-size: 15px; }
   .tag { font-size: 11px; letter-spacing: 1.1px; font-weight: 800; padding: 5px 12px; border-radius: 999px; }
-  .tag.strike { background: rgba(182,240,156,.14); color: var(--accent); border: 1px solid rgba(182,240,156,.35); }
-  .tag.chase { background: rgba(240,185,92,.14); color: var(--chase); border: 1px solid rgba(240,185,92,.35); }
-  .rec-empty { color: var(--dim); font-size: 13px; padding: 18px; text-align: center; border: 1px dashed var(--line); border-radius: 11px; }
+  .tag.strike { background: var(--accent-soft); color: var(--accent); border: 1px solid #c7d4f7; }
+  .tag.chase { background: #fff4e0; color: var(--chase); border: 1px solid #f4d9a8; }
+  .rec-empty { color: var(--dim); font-size: 13px; padding: 20px; text-align: center; border: 1px dashed var(--line); border-radius: 12px; background: var(--panel-2); }
+  .badge.live { background: var(--accent-soft); color: var(--accent); border: 1px solid #c7d4f7; }
+
+  /* ---- output maps ---- */
+  .maps-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  .mini-grid { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr); aspect-ratio: 1 / 1; max-width: 240px; margin: 4px auto 0; gap: 0; }
+  .mini-cell { border: 1px solid transparent; position: relative; }
+  .mini-cell.inzone { border-color: #b8c5d6; background: rgba(29,78,216,.04); }
+  .mini-cell .dot {
+    position: absolute; inset: 0; margin: auto; width: 26px; height: 26px; border-radius: 50%;
+    display: none; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: #fff;
+  }
+  .mini-cell.mark-last .dot { display: flex; background: #eab308; box-shadow: 0 0 0 3px rgba(234,179,8,.22); }
+  .mini-cell.mark-strike .dot { display: flex; background: var(--accent); box-shadow: 0 0 0 3px rgba(29,78,216,.18); }
+  .mini-cell.mark-chase .dot { display: flex; background: var(--chase); box-shadow: 0 0 0 3px rgba(217,119,6,.18); }
+  .mini-plate { display: flex; justify-content: center; margin-top: 6px; }
+  .mini-plate svg { opacity: .3; }
 
   @media (max-width: 900px) {
     .grid-main, .go-row, .row2 { grid-template-columns: 1fr; }
@@ -265,6 +307,25 @@
     </section>
   </div>
 
+  <div class="maps-row" id="mapsRow">
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Last Pitch</div>
+        <div class="panel-hint">where it was thrown</div>
+      </div>
+      <div class="mini-grid" id="mapLast"></div>
+      <div class="mini-plate"><svg width="70" height="20" viewBox="0 0 90 26"><path d="M6 2 H84 L84 10 L45 24 L6 10 Z" fill="none" stroke="#7c8b99" stroke-width="2"/></svg></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Throw Next</div>
+        <div class="panel-hint">ranked target spots</div>
+      </div>
+      <div class="mini-grid" id="mapNext"></div>
+      <div class="mini-plate"><svg width="70" height="20" viewBox="0 0 90 26"><path d="M6 2 H84 L84 10 L45 24 L6 10 Z" fill="none" stroke="#7c8b99" stroke-width="2"/></svg></div>
+    </section>
+  </div>
+
 </div>
 
 <script>
@@ -343,13 +404,21 @@ PITCH_TYPES.forEach(p => {
   b.addEventListener("click", () => {
     state.lastPitchType = p;
     const avgVelo = state.averages[p] && state.averages[p].velo;
-    if (avgVelo != null && !Number.isNaN(avgVelo)) setVelo(avgVelo);
+    if (avgVelo != null && !Number.isNaN(avgVelo)) setVelo(avgVelo, { fromAvg: true });
     renderPitchTypes();
   });
   ptGrid.appendChild(b);
 });
 function renderPitchTypes() {
-  [...ptGrid.children].forEach(b => b.classList.toggle("on", b.dataset.pt === state.lastPitchType));
+  [...ptGrid.children].forEach(b => {
+    b.classList.toggle("on", b.dataset.pt === state.lastPitchType);
+    const a = state.averages[b.dataset.pt];
+    b.classList.toggle("has-data", a && a.velo != null);
+  });
+  // highlight the selected pitch's row in the averages table
+  [...avgBody.children].forEach(tr => {
+    tr.classList.toggle("selected", tr.dataset.pitch === state.lastPitchType);
+  });
 }
 
 /* ---------------- averages table ---------------- */
@@ -358,6 +427,7 @@ function buildTable() {
   avgBody.innerHTML = "";
   PITCH_TYPES.forEach(p => {
     const tr = document.createElement("tr");
+    tr.dataset.pitch = p;
     const nameTd = document.createElement("td");
     nameTd.textContent = p;
     tr.appendChild(nameTd);
@@ -372,6 +442,7 @@ function buildTable() {
         const v = parseField(input.value);
         state.averages[p][field] = v;
         markRow(tr, p);
+        renderPitchTypes(); // update pitch-button has-data state live
         save();
       });
       input.addEventListener("blur", () => { input.value = formatField(state.averages[p][field], field); });
@@ -381,6 +452,7 @@ function buildTable() {
     markRow(tr, p);
     avgBody.appendChild(tr);
   });
+  renderPitchTypes(); // refresh button data-state after table rebuild
 }
 function markRow(tr, p) {
   const a = state.averages[p];
@@ -403,10 +475,17 @@ function formatField(v, field) {
 /* ---------------- velocity ---------------- */
 const veloInput = document.getElementById("velo");
 const veloVal = document.getElementById("veloVal");
-function setVelo(v) {
-  state.velo = Math.max(+veloInput.min, Math.min(+veloInput.max, Math.round(v)));
+function setVelo(v, opts) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return; // never let a bad value snap the slider to its min
+  state.velo = Math.max(+veloInput.min, Math.min(+veloInput.max, Math.round(n)));
   veloInput.value = state.velo;
   veloVal.innerHTML = state.velo + "<span>MPH</span>";
+  if (opts && opts.fromAvg) {
+    veloVal.classList.remove("pulse");
+    void veloVal.offsetWidth; // restart animation
+    veloVal.classList.add("pulse");
+  }
 }
 veloInput.addEventListener("input", () => setVelo(+veloInput.value));
 
@@ -471,20 +550,148 @@ document.getElementById("fullReset").addEventListener("click", () => {
   renderAll();
 });
 
-/* ---------------- engine hook ----------------
-   Replaced by the spec'd deterministic scoring engine.
+/* ---------------- recommendation engine ----------------
+   Deterministic scoring model ported from docs/generate_scenarios.py.
+   Each candidate pitch starts at 50, then gets adjusted by:
+   count leverage, hitter timing, platoon matchup, movement/velo
+   separation from the last pitch, and a same-pitch repeat penalty.
+   Location is chosen by pitch family + count + platoon.
 -------------------------------------------- */
-function recommend() { return []; }
+// reference defaults: velo, ivb (Vert), horz (arm-side positive), pitch family
+const REF = {
+  "4 Seam":  { velo: 94, ivb:  19, horz:   8, fam: "fastball" },
+  "Sinker":  { velo: 92, ivb:   7, horz:  12, fam: "fastball" },
+  "Cutter":  { velo: 89, ivb:  11, horz:  -4, fam: "fastball" },
+  "Gyro":    { velo: 86, ivb:  -4, horz:  -6, fam: "breaking" },
+  "Sweeper": { velo: 84, ivb:   2, horz: -20, fam: "breaking" },
+  "Curve":   { velo: 78, ivb: -14, horz:  -9, fam: "breaking" },
+  "Split":   { velo: 87, ivb:   5, horz:   2, fam: "offspeed" },
+  "Change":  { velo: 84, ivb:  10, horz:  13, fam: "offspeed" },
+};
+
+function locName(col, row, hand) {
+  const v = row <= 1 ? "Up" : (row >= 3 ? "Down" : "Mid");
+  let s;
+  if (hand === "R") s = col >= 3 ? "In" : (col <= 1 ? "Away" : "Mid");
+  else s = col <= 1 ? "In" : (col >= 3 ? "Away" : "Mid");
+  if (v === "Mid" && s === "Mid") return "Middle Middle";
+  if (s === "Mid") return v + " & Middle";
+  if (v === "Mid") return "Middle & " + s;
+  return v + " & " + s;
+}
+function cellIntent(col, row) {
+  return (col >= 1 && col <= 3 && row >= 1 && row <= 3) ? "strike" : "chase";
+}
+
+function scorePitch(pitch) {
+  const ref = REF[pitch];
+  const a = state.averages[pitch] || {};
+  const velo = a.velo != null ? a.velo : ref.velo;
+  const ivb  = a.vert != null ? a.vert : ref.ivb;
+  const horz = a.horz != null ? a.horz : ref.horz;
+  const fam = ref.fam;
+
+  const balls = state.balls, strikes = state.strikes;
+  const ph = state.pitcherHand, bh = state.batterHand;
+  const timing = state.timing, lastType = state.lastPitchType;
+
+  let score = 50;
+
+  // --- 1. count leverage ---
+  const isPitchersCount = (strikes > balls) && (strikes >= 2 || (strikes === 1 && balls === 0));
+  const isHittersCount = balls > strikes || balls === 3;
+  if (isPitchersCount) {
+    if (fam === "breaking" || fam === "offspeed") score += 8;
+  } else if (isHittersCount) {
+    score += fam === "fastball" ? 5 : 3;
+  }
+
+  // --- 2. timing exploitation ---
+  if (timing === "early") {
+    if (fam === "offspeed") score += 18;
+    else if (pitch === "Curve") score += 14;
+    else if (pitch === "4 Seam") score += 8;
+    else if (fam === "breaking") score += 4;
+  } else if (timing === "late") {
+    if (pitch === "4 Seam") score += 18;
+    else if (pitch === "Cutter") score += 12;
+    else if (fam === "offspeed") score -= 8;
+  } else if (timing === "ontime") {
+    if (lastType) {
+      if (fam !== REF[lastType].fam) score += 14; else score -= 10;
+    }
+    score -= 4;
+  }
+
+  // --- 3. platoon logic ---
+  const sameHand = ph === bh;
+  if (sameHand) {
+    if (fam === "breaking") score += 10;
+    if (pitch === "Change") score -= 4;
+  } else {
+    if (pitch === "Change") score += 10;
+    if (pitch === "Cutter") score += 8;
+    if (pitch === "Sinker") score += 6;
+    if (fam === "breaking" && pitch !== "Sweeper") score -= 3;
+  }
+
+  // --- 4. tunneling / movement + velo separation from last pitch ---
+  if (lastType && lastType !== pitch) {
+    const l = REF[lastType];
+    const sep = Math.hypot(ivb - l.ivb, horz - l.horz);
+    if (sep > 25) score += 8; else if (sep > 15) score += 4;
+    if (Math.abs(velo - l.velo) > 10) score += 5;
+  } else if (lastType === pitch) {
+    if (timing === "late" && pitch === "4 Seam") score += 6;
+    else if (timing === "early" && (fam === "breaking" || fam === "offspeed")) score -= 10;
+    else score -= 6;
+  }
+
+  // --- 5. recommended location ---
+  let col = 2, row = 2;
+  if (pitch === "4 Seam") { col = 2; row = 0; }
+  else if (pitch === "Sinker") { col = bh === "R" ? 1 : 3; row = 4; }
+  else if (pitch === "Cutter") { col = bh === "R" ? 3 : 1; row = 2; }
+  else if (pitch === "Gyro") { if (sameHand) { col = bh === "R" ? 3 : 1; row = 4; } else { col = 2; row = 4; } }
+  else if (pitch === "Sweeper") { col = sameHand ? (bh === "R" ? 1 : 3) : (bh === "R" ? 3 : 1); row = 3; }
+  else if (pitch === "Curve") { col = 2; row = 4; }
+  else if (pitch === "Split") { col = 2; row = 3; }
+  else if (pitch === "Change") { col = bh === "R" ? 1 : 3; row = 4; }
+
+  if (isHittersCount) { col = Math.max(1, Math.min(3, col)); row = Math.max(1, Math.min(3, row)); }
+  if (isPitchersCount && (fam === "breaking" || fam === "offspeed")) row = Math.max(row, 4);
+
+  let intent = cellIntent(col, row);
+  if (isPitchersCount && (fam === "breaking" || fam === "offspeed")) intent = "chase";
+  if (isHittersCount) intent = "strike";
+
+  return { type: pitch, score: Math.round(score), col, row, intent, locationName: locName(col, row, bh) };
+}
+
+function recommend() {
+  const out = [];
+  PITCH_TYPES.forEach(p => {
+    const a = state.averages[p];
+    if (!a || a.velo == null) return; // only score pitches the pitcher actually throws
+    out.push(scorePitch(p));
+  });
+  out.sort((x, y) => y.score - x.score);
+  return out.slice(0, 5);
+}
 
 const recList = document.getElementById("recList");
 document.getElementById("go").addEventListener("click", () => {
   state.recommendations = recommend();
   renderRecs();
+  renderMaps();
 });
 function renderRecs() {
   const recs = state.recommendations;
   if (!recs.length) {
-    recList.innerHTML = '<div class="rec-empty">Engine not wired yet \u2014 awaiting the domain spec.</div>';
+    const anyAvg = PITCH_TYPES.some(p => state.averages[p] && state.averages[p].velo != null);
+    recList.innerHTML = '<div class="rec-empty">' +
+      (anyAvg ? "Mark the last pitch and press GO." : "Enter the pitcher's averages (at least Velo) so the engine has an arsenal to score.") +
+      "</div>";
     return;
   }
   recList.innerHTML = "";
@@ -501,15 +708,60 @@ function renderRecs() {
   });
 }
 
+/* ---------------- output maps ---------------- */
+const mapLast = document.getElementById("mapLast");
+const mapNext = document.getElementById("mapNext");
+function buildMini(container) {
+  container.innerHTML = "";
+  for (let row = 0; row < 5; row++) {
+    for (let col = 0; col < 5; col++) {
+      const cell = document.createElement("div");
+      cell.className = "mini-cell" + (row >= 1 && row <= 3 && col >= 1 && col <= 3 ? " inzone" : "");
+      cell.dataset.col = col; cell.dataset.row = row;
+      cell.innerHTML = '<div class="dot"></div>';
+      container.appendChild(cell);
+    }
+  }
+}
+function miniCell(container, col, row) {
+  return [...container.children].find(c => +c.dataset.col === col && +c.dataset.row === row);
+}
+function clearMini(container) {
+  [...container.children].forEach(c => {
+    c.classList.remove("mark-last", "mark-strike", "mark-chase");
+    c.querySelector(".dot").textContent = "";
+  });
+}
+function renderMaps() {
+  clearMini(mapLast);
+  if (state.lastLoc) {
+    const c = miniCell(mapLast, state.lastLoc.col, state.lastLoc.row);
+    if (c) c.classList.add("mark-last");
+  }
+  clearMini(mapNext);
+  (state.recommendations || []).forEach((r, i) => {
+    const c = miniCell(mapNext, r.col, r.row);
+    if (!c || c.classList.contains("mark-strike") || c.classList.contains("mark-chase")) return;
+    c.classList.add(r.intent === "chase" ? "mark-chase" : "mark-strike");
+    c.querySelector(".dot").textContent = String(i + 1);
+  });
+}
+
 /* ---------------- boot ---------------- */
 function renderAll() {
-  renderZone(); renderPitchTypes(); renderBatterHand(); renderCount(); renderRecs();
+  renderZone(); renderPitchTypes(); renderBatterHand(); renderCount(); renderRecs(); renderMaps();
   setVelo(state.velo);
   [...pitchHand.children].forEach(x => x.classList.toggle("on", x.dataset.hand === state.pitcherHand));
   [...timingSeg.children].forEach(x => x.classList.toggle("on", x.dataset.t === state.timing));
 }
+const engineBadge = document.getElementById("engineBadge");
+engineBadge.textContent = "Engine Live";
+engineBadge.classList.remove("demo");
+engineBadge.classList.add("live");
 load();
 buildTable();
+buildMini(mapLast);
+buildMini(mapNext);
 renderAll();
 </script>
 </body>
