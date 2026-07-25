@@ -16,9 +16,10 @@ Movement and velocity values are MLB averages synthesized from Statcast/Baseball
 6. [Platoon splits: handedness matchups](#platoon-splits-handedness-matchups)
 7. [The strike zone and chase regions](#the-strike-zone-and-chase-regions)
 8. [Pitch sequencing and tunneling](#pitch-sequencing-and-tunneling)
-9. [Player data: Statcast metrics explained](#player-data-statcast-metrics-explained)
-10. [Pitcher evaluation metrics: Stuff+, Location+, Pitching+](#pitcher-evaluation-metrics-stuff-location-pitching)
-11. [Sources](#sources)
+9. [Worked example scenarios (prediction charts)](#worked-example-scenarios-prediction-charts)
+10. [Player data: Statcast metrics explained](#player-data-statcast-metrics-explained)
+11. [Pitcher evaluation metrics: Stuff+, Location+, Pitching+](#pitcher-evaluation-metrics-stuff-location-pitching)
+12. [Sources](#sources)
 
 ---
 
@@ -401,6 +402,75 @@ A pitch is only as good as what it tunnels off. **Tunneling** = two pitches shar
 4. **Velocity separation compounds.** A 97 mph 4-seam followed by an 83 mph sweeper is a 14 mph gap on top of the movement gap - two prediction errors at once.
 5. **Don't be predictable in predictable counts.** The 3-1 offspeed is the modern counter to the hitter who "knows" a fastball is coming.
 6. **Movement-vector separation score:** for two pitches, separation = sqrt((IVB1 - IVB2)^2 + (Horz1 - Horz2)^2). A 4-seam (+19, +8) vs. a curveball (-16, -10) = sqrt(35^2 + 18^2) = ~39 in of total separation. Anything above ~25 in is a strong contrast.
+
+---
+
+## Worked example scenarios (prediction charts)
+
+These three examples show the recommendation engine's logic end-to-end. Each one takes a game state (pitcher's arsenal, matchup, count, last pitch, hitter timing), scores every available pitch with a deterministic model built from the rules above, and outputs the top 5 next-pitch recommendations with a chart showing the scores and the zone locations. The scoring model lives in `docs/generate_scenarios.py` and you can re-run it to regenerate the charts: `python3 docs/generate_scenarios.py`.
+
+### Scenario 1: Hitter EARLY on a fastball up-and-away
+
+**State:** RHP vs LHH, count 0-1 (pitcher's count), last pitch 4 Seam 97 mph up-and-away, hitter was **Early**.
+**Pitcher arsenal:** 4 Seam 94/+19/+8, Curve 79/-20/-9, Cutter 85/+3/-3, Sweeper 83/-3/-20, Change 84/+10/+13.
+
+The hitter is cheating to velocity and got out in front. Per the timing-exploitation rules, the best move is **slower, same tunnel** - a changeup or curveball that looks like the fastball out of the hand but arrives late, so the hitter swings way out in front. The changeup is #1 because it also fades away from a LHH's barrel (platoon bonus) on top of the timing freeze.
+
+![Scenario 1 chart](docs/scenarios/scenario1.png)
+
+| Rank | Pitch | Location | Intent | Score | Why |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Change | Down & Away | Chase | 86 | Offspeed in tunnel freezes early hitter; fades off LHH barrel |
+| 2 | Curve | Down & Middle | Chase | 82 | Timing freeze; +43 in movement separation vs the fastball; +15 mph velo gap |
+| 3 | Sweeper | Down & In | Chase | 75 | +36 in separation; glove-side sweep |
+| 4 | Cutter | Middle & In | Strike | 62 | Jams the LHH's hands; good separation |
+| 5 | 4 Seam | Up & Middle | Chase | 52 | High FB makes them roll over (but repeat penalty) |
+
+### Scenario 2: Hitter ON TIME on a changeup (locked in)
+
+**State:** LHP vs RHH, count 2-1 (hitter's count), last pitch Change 84 mph down-and-away, hitter was **On Time**.
+**Pitcher arsenal:** 4 Seam 95/+18/-7, Sinker 92/+6/-13, Sweeper 82/+1/+18, Curve 76/-15/+8, Change 84/+9/-13, Split 86/+5/-2.
+
+The hitter squared up the changeup - they have your timing. Per the rules, you must **change the pitch family AND the tunnel**, and because it's a hitter's count (2-1) you must throw a strike. The sinker is #1: it switches from offspeed to fastball (resets the tunnel), runs in on the RHH's front hip (platoon), and is a strike-eligible location.
+
+![Scenario 2 chart](docs/scenarios/scenario2.png)
+
+| Rank | Pitch | Location | Intent | Score | Why |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Sinker | Down & Away | Strike | 79 | Switch family resets tunnel; runs in on front hip; must-throw-strike count |
+| 2 | 4 Seam | Up & Middle | Strike | 74 | Switch family; +22 in separation; +11 mph velo gap |
+| 3 | Curve | Down & Middle | Strike | 68 | Switch family; +25 in separation |
+| 4 | Sweeper | Down & In | Strike | 63 | Switch family; strike location |
+| 5 | Split | Down & Middle | Strike | 43 | Same family as changeup (penalty); weakest option |
+
+### Scenario 3: Hitter LATE on a sweeper back-foot (sitting soft)
+
+**State:** RHP vs RHH, count 1-2 (pitcher's count), last pitch Sweeper 84 mph back-foot, hitter was **Late**.
+**Pitcher arsenal:** 4 Seam 97/+20/+7, Sweeper 84/+2/-19, Gyro 87/-3/-6, Split 88/+5/+2, Curve 80/-13/-8.
+
+The hitter is sitting soft and their bat is behind. Per the timing rules, the best move is **harder and elevated** - a high-IVB 4-seam up blows by them. The 4-seam is #1: +32 in movement separation and +13 mph velo gap vs the sweeper, plus the heater-up exploit for a late hitter. The curve is #2 as a same-handed chase pitch (back-foot).
+
+![Scenario 3 chart](docs/scenarios/scenario3.png)
+
+| Rank | Pitch | Location | Intent | Score | Why |
+| --- | --- | --- | --- | --- | --- |
+| 1 | 4 Seam | Up & Middle | Chase | 81 | Heater up blows by the late hitter; +32 in separation; +13 mph gap |
+| 2 | Curve | Down & Middle | Chase | 72 | Same-handed breaker for chase; back-foot; good separation |
+| 3 | Gyro | Down & In | Chase | 68 | Same-handed back-foot chase; late compact break |
+| 4 | Sweeper | Down & Away | Chase | 62 | Same-handed chase but repeat penalty (just threw it) |
+| 5 | Split | Down & Middle | Chase | 54 | Pitcher's count chase; but offspeed is bad vs a late hitter (penalty) |
+
+### How the scoring model works
+
+Each candidate pitch gets a baseline score of 50, then adjustments from five factors, all derived from the rules in this README:
+
+1. **Count leverage** (+8 for chase pitches in pitcher's counts; +5 for fastballs in must-throw-strike counts)
+2. **Timing exploitation** (+18 for offspeed vs an Early hitter; +18 for a high fastball vs a Late hitter; +14 for switching families vs an On-Time hitter)
+3. **Platoon logic** (+10 for changeups vs opposite-handed, +10 for breaking balls vs same-handed, etc.)
+4. **Tunneling / movement separation** (+8 if >25 in of IVB+Horz separation from the last pitch; +5 if >10 mph velo gap)
+5. **Same-pitch repeat** (-6 predictability penalty, except +6 to repeat a heater when the hitter is Late)
+
+The recommended location is chosen by pitch family + count + platoon (e.g. 4-seam up, sweeper back-foot to same-handed, changeup down-and-arm-side), then nudged into the zone for hitter's counts and out of the zone for pitcher's counts. The full code is in `docs/generate_scenarios.py`.
 
 ---
 
