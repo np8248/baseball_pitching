@@ -166,6 +166,22 @@
   .tag.strike { background: var(--accent-soft); color: var(--accent); border: 1px solid #c7d4f7; }
   .tag.chase { background: #fff4e0; color: var(--chase); border: 1px solid #f4d9a8; }
   .rec-empty { color: var(--dim); font-size: 13px; padding: 20px; text-align: center; border: 1px dashed var(--line); border-radius: 12px; background: var(--panel-2); }
+  .badge.live { background: var(--accent-soft); color: var(--accent); border: 1px solid #c7d4f7; }
+
+  /* ---- output maps ---- */
+  .maps-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 16px; }
+  .mini-grid { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr); aspect-ratio: 1 / 1; max-width: 240px; margin: 4px auto 0; gap: 0; }
+  .mini-cell { border: 1px solid transparent; position: relative; }
+  .mini-cell.inzone { border-color: #b8c5d6; background: rgba(29,78,216,.04); }
+  .mini-cell .dot {
+    position: absolute; inset: 0; margin: auto; width: 26px; height: 26px; border-radius: 50%;
+    display: none; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; color: #fff;
+  }
+  .mini-cell.mark-last .dot { display: flex; background: #eab308; box-shadow: 0 0 0 3px rgba(234,179,8,.22); }
+  .mini-cell.mark-strike .dot { display: flex; background: var(--accent); box-shadow: 0 0 0 3px rgba(29,78,216,.18); }
+  .mini-cell.mark-chase .dot { display: flex; background: var(--chase); box-shadow: 0 0 0 3px rgba(217,119,6,.18); }
+  .mini-plate { display: flex; justify-content: center; margin-top: 6px; }
+  .mini-plate svg { opacity: .3; }
 
   @media (max-width: 900px) {
     .grid-main, .go-row, .row2 { grid-template-columns: 1fr; }
@@ -288,6 +304,25 @@
       <div class="rec-list" id="recList">
         <div class="rec-empty">Set the pitcher's averages, mark the last pitch, then press GO.</div>
       </div>
+    </section>
+  </div>
+
+  <div class="maps-row" id="mapsRow">
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Last Pitch</div>
+        <div class="panel-hint">where it was thrown</div>
+      </div>
+      <div class="mini-grid" id="mapLast"></div>
+      <div class="mini-plate"><svg width="70" height="20" viewBox="0 0 90 26"><path d="M6 2 H84 L84 10 L45 24 L6 10 Z" fill="none" stroke="#7c8b99" stroke-width="2"/></svg></div>
+    </section>
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Throw Next</div>
+        <div class="panel-hint">ranked target spots</div>
+      </div>
+      <div class="mini-grid" id="mapNext"></div>
+      <div class="mini-plate"><svg width="70" height="20" viewBox="0 0 90 26"><path d="M6 2 H84 L84 10 L45 24 L6 10 Z" fill="none" stroke="#7c8b99" stroke-width="2"/></svg></div>
     </section>
   </div>
 
@@ -515,20 +550,148 @@ document.getElementById("fullReset").addEventListener("click", () => {
   renderAll();
 });
 
-/* ---------------- engine hook ----------------
-   Replaced by the spec'd deterministic scoring engine.
+/* ---------------- recommendation engine ----------------
+   Deterministic scoring model ported from docs/generate_scenarios.py.
+   Each candidate pitch starts at 50, then gets adjusted by:
+   count leverage, hitter timing, platoon matchup, movement/velo
+   separation from the last pitch, and a same-pitch repeat penalty.
+   Location is chosen by pitch family + count + platoon.
 -------------------------------------------- */
-function recommend() { return []; }
+// reference defaults: velo, ivb (Vert), horz (arm-side positive), pitch family
+const REF = {
+  "4 Seam":  { velo: 94, ivb:  19, horz:   8, fam: "fastball" },
+  "Sinker":  { velo: 92, ivb:   7, horz:  12, fam: "fastball" },
+  "Cutter":  { velo: 89, ivb:  11, horz:  -4, fam: "fastball" },
+  "Gyro":    { velo: 86, ivb:  -4, horz:  -6, fam: "breaking" },
+  "Sweeper": { velo: 84, ivb:   2, horz: -20, fam: "breaking" },
+  "Curve":   { velo: 78, ivb: -14, horz:  -9, fam: "breaking" },
+  "Split":   { velo: 87, ivb:   5, horz:   2, fam: "offspeed" },
+  "Change":  { velo: 84, ivb:  10, horz:  13, fam: "offspeed" },
+};
+
+function locName(col, row, hand) {
+  const v = row <= 1 ? "Up" : (row >= 3 ? "Down" : "Mid");
+  let s;
+  if (hand === "R") s = col >= 3 ? "In" : (col <= 1 ? "Away" : "Mid");
+  else s = col <= 1 ? "In" : (col >= 3 ? "Away" : "Mid");
+  if (v === "Mid" && s === "Mid") return "Middle Middle";
+  if (s === "Mid") return v + " & Middle";
+  if (v === "Mid") return "Middle & " + s;
+  return v + " & " + s;
+}
+function cellIntent(col, row) {
+  return (col >= 1 && col <= 3 && row >= 1 && row <= 3) ? "strike" : "chase";
+}
+
+function scorePitch(pitch) {
+  const ref = REF[pitch];
+  const a = state.averages[pitch] || {};
+  const velo = a.velo != null ? a.velo : ref.velo;
+  const ivb  = a.vert != null ? a.vert : ref.ivb;
+  const horz = a.horz != null ? a.horz : ref.horz;
+  const fam = ref.fam;
+
+  const balls = state.balls, strikes = state.strikes;
+  const ph = state.pitcherHand, bh = state.batterHand;
+  const timing = state.timing, lastType = state.lastPitchType;
+
+  let score = 50;
+
+  // --- 1. count leverage ---
+  const isPitchersCount = (strikes > balls) && (strikes >= 2 || (strikes === 1 && balls === 0));
+  const isHittersCount = balls > strikes || balls === 3;
+  if (isPitchersCount) {
+    if (fam === "breaking" || fam === "offspeed") score += 8;
+  } else if (isHittersCount) {
+    score += fam === "fastball" ? 5 : 3;
+  }
+
+  // --- 2. timing exploitation ---
+  if (timing === "early") {
+    if (fam === "offspeed") score += 18;
+    else if (pitch === "Curve") score += 14;
+    else if (pitch === "4 Seam") score += 8;
+    else if (fam === "breaking") score += 4;
+  } else if (timing === "late") {
+    if (pitch === "4 Seam") score += 18;
+    else if (pitch === "Cutter") score += 12;
+    else if (fam === "offspeed") score -= 8;
+  } else if (timing === "ontime") {
+    if (lastType) {
+      if (fam !== REF[lastType].fam) score += 14; else score -= 10;
+    }
+    score -= 4;
+  }
+
+  // --- 3. platoon logic ---
+  const sameHand = ph === bh;
+  if (sameHand) {
+    if (fam === "breaking") score += 10;
+    if (pitch === "Change") score -= 4;
+  } else {
+    if (pitch === "Change") score += 10;
+    if (pitch === "Cutter") score += 8;
+    if (pitch === "Sinker") score += 6;
+    if (fam === "breaking" && pitch !== "Sweeper") score -= 3;
+  }
+
+  // --- 4. tunneling / movement + velo separation from last pitch ---
+  if (lastType && lastType !== pitch) {
+    const l = REF[lastType];
+    const sep = Math.hypot(ivb - l.ivb, horz - l.horz);
+    if (sep > 25) score += 8; else if (sep > 15) score += 4;
+    if (Math.abs(velo - l.velo) > 10) score += 5;
+  } else if (lastType === pitch) {
+    if (timing === "late" && pitch === "4 Seam") score += 6;
+    else if (timing === "early" && (fam === "breaking" || fam === "offspeed")) score -= 10;
+    else score -= 6;
+  }
+
+  // --- 5. recommended location ---
+  let col = 2, row = 2;
+  if (pitch === "4 Seam") { col = 2; row = 0; }
+  else if (pitch === "Sinker") { col = bh === "R" ? 1 : 3; row = 4; }
+  else if (pitch === "Cutter") { col = bh === "R" ? 3 : 1; row = 2; }
+  else if (pitch === "Gyro") { if (sameHand) { col = bh === "R" ? 3 : 1; row = 4; } else { col = 2; row = 4; } }
+  else if (pitch === "Sweeper") { col = sameHand ? (bh === "R" ? 1 : 3) : (bh === "R" ? 3 : 1); row = 3; }
+  else if (pitch === "Curve") { col = 2; row = 4; }
+  else if (pitch === "Split") { col = 2; row = 3; }
+  else if (pitch === "Change") { col = bh === "R" ? 1 : 3; row = 4; }
+
+  if (isHittersCount) { col = Math.max(1, Math.min(3, col)); row = Math.max(1, Math.min(3, row)); }
+  if (isPitchersCount && (fam === "breaking" || fam === "offspeed")) row = Math.max(row, 4);
+
+  let intent = cellIntent(col, row);
+  if (isPitchersCount && (fam === "breaking" || fam === "offspeed")) intent = "chase";
+  if (isHittersCount) intent = "strike";
+
+  return { type: pitch, score: Math.round(score), col, row, intent, locationName: locName(col, row, bh) };
+}
+
+function recommend() {
+  const out = [];
+  PITCH_TYPES.forEach(p => {
+    const a = state.averages[p];
+    if (!a || a.velo == null) return; // only score pitches the pitcher actually throws
+    out.push(scorePitch(p));
+  });
+  out.sort((x, y) => y.score - x.score);
+  return out.slice(0, 5);
+}
 
 const recList = document.getElementById("recList");
 document.getElementById("go").addEventListener("click", () => {
   state.recommendations = recommend();
   renderRecs();
+  renderMaps();
 });
 function renderRecs() {
   const recs = state.recommendations;
   if (!recs.length) {
-    recList.innerHTML = '<div class="rec-empty">Engine not wired yet \u2014 awaiting the domain spec.</div>';
+    const anyAvg = PITCH_TYPES.some(p => state.averages[p] && state.averages[p].velo != null);
+    recList.innerHTML = '<div class="rec-empty">' +
+      (anyAvg ? "Mark the last pitch and press GO." : "Enter the pitcher's averages (at least Velo) so the engine has an arsenal to score.") +
+      "</div>";
     return;
   }
   recList.innerHTML = "";
@@ -545,15 +708,60 @@ function renderRecs() {
   });
 }
 
+/* ---------------- output maps ---------------- */
+const mapLast = document.getElementById("mapLast");
+const mapNext = document.getElementById("mapNext");
+function buildMini(container) {
+  container.innerHTML = "";
+  for (let row = 0; row < 5; row++) {
+    for (let col = 0; col < 5; col++) {
+      const cell = document.createElement("div");
+      cell.className = "mini-cell" + (row >= 1 && row <= 3 && col >= 1 && col <= 3 ? " inzone" : "");
+      cell.dataset.col = col; cell.dataset.row = row;
+      cell.innerHTML = '<div class="dot"></div>';
+      container.appendChild(cell);
+    }
+  }
+}
+function miniCell(container, col, row) {
+  return [...container.children].find(c => +c.dataset.col === col && +c.dataset.row === row);
+}
+function clearMini(container) {
+  [...container.children].forEach(c => {
+    c.classList.remove("mark-last", "mark-strike", "mark-chase");
+    c.querySelector(".dot").textContent = "";
+  });
+}
+function renderMaps() {
+  clearMini(mapLast);
+  if (state.lastLoc) {
+    const c = miniCell(mapLast, state.lastLoc.col, state.lastLoc.row);
+    if (c) c.classList.add("mark-last");
+  }
+  clearMini(mapNext);
+  (state.recommendations || []).forEach((r, i) => {
+    const c = miniCell(mapNext, r.col, r.row);
+    if (!c || c.classList.contains("mark-strike") || c.classList.contains("mark-chase")) return;
+    c.classList.add(r.intent === "chase" ? "mark-chase" : "mark-strike");
+    c.querySelector(".dot").textContent = String(i + 1);
+  });
+}
+
 /* ---------------- boot ---------------- */
 function renderAll() {
-  renderZone(); renderPitchTypes(); renderBatterHand(); renderCount(); renderRecs();
+  renderZone(); renderPitchTypes(); renderBatterHand(); renderCount(); renderRecs(); renderMaps();
   setVelo(state.velo);
   [...pitchHand.children].forEach(x => x.classList.toggle("on", x.dataset.hand === state.pitcherHand));
   [...timingSeg.children].forEach(x => x.classList.toggle("on", x.dataset.t === state.timing));
 }
+const engineBadge = document.getElementById("engineBadge");
+engineBadge.textContent = "Engine Live";
+engineBadge.classList.remove("demo");
+engineBadge.classList.add("live");
 load();
 buildTable();
+buildMini(mapLast);
+buildMini(mapNext);
 renderAll();
 </script>
 </body>
