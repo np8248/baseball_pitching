@@ -88,8 +88,14 @@
 
   /* ---- velo ---- */
   .velo-head { display: flex; align-items: flex-end; }
-  .velo-val { margin-left: auto; font-size: 34px; font-weight: 800; color: var(--accent); line-height: 1; }
+  .velo-val { margin-left: auto; font-size: 34px; font-weight: 800; color: var(--accent); line-height: 1; transition: transform .15s; }
   .velo-val span { font-size: 13px; color: var(--dim); margin-left: 4px; font-weight: 700; }
+  .velo-val.pulse { animation: veloPulse .55s ease-out; }
+  @keyframes veloPulse {
+    0%   { transform: scale(1);   background: var(--accent-soft); border-radius: 8px; padding: 2px 8px; }
+    40%  { transform: scale(1.18); }
+    100% { transform: scale(1);   background: transparent; padding: 2px 0; }
+  }
   input[type=range] { width: 100%; margin: 12px 0 2px; accent-color: var(--accent); height: 34px; }
   .ticks { display: flex; justify-content: space-between; color: var(--dim); font-size: 11px; }
 
@@ -363,7 +369,7 @@ PITCH_TYPES.forEach(p => {
   b.addEventListener("click", () => {
     state.lastPitchType = p;
     const avgVelo = state.averages[p] && state.averages[p].velo;
-    if (avgVelo != null && !Number.isNaN(avgVelo)) setVelo(avgVelo);
+    if (avgVelo != null && !Number.isNaN(avgVelo)) setVelo(avgVelo, { fromAvg: true });
     renderPitchTypes();
   });
   ptGrid.appendChild(b);
@@ -434,10 +440,17 @@ function formatField(v, field) {
 /* ---------------- velocity ---------------- */
 const veloInput = document.getElementById("velo");
 const veloVal = document.getElementById("veloVal");
-function setVelo(v) {
-  state.velo = Math.max(+veloInput.min, Math.min(+veloInput.max, Math.round(v)));
+function setVelo(v, opts) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return; // never let a bad value snap the slider to its min
+  state.velo = Math.max(+veloInput.min, Math.min(+veloInput.max, Math.round(n)));
   veloInput.value = state.velo;
   veloVal.innerHTML = state.velo + "<span>MPH</span>";
+  if (opts && opts.fromAvg) {
+    veloVal.classList.remove("pulse");
+    void veloVal.offsetWidth; // restart animation
+    veloVal.classList.add("pulse");
+  }
 }
 veloInput.addEventListener("input", () => setVelo(+veloInput.value));
 
