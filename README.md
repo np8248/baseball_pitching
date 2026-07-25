@@ -33,6 +33,30 @@ Two numbers define a pitch's shape, both in **inches**:
 
 **Vertical Approach Angle (VAA)** is a third, related metric: the angle at which the pitch enters the zone. MLB average 4-seam VAA is ~-4.4 degrees. Flatter (closer to -3.7) is elite for fastballs at the top of the zone; steeper is better for breaking balls below the zone. VAA is driven by release height and extension.
 
+### Plain-English glossary (the jargon, explained simply)
+
+| Term | What it actually means |
+| --- | --- |
+| **IVB / Vert** | "How much the spin fights gravity." A high positive number = the ball looks like it rises (really: falls less than expected). A negative number = the ball drops extra. Measured in inches. |
+| **Horz** | "How much the ball moves sideways." Positive = toward the pitcher's throwing-arm side. Negative = toward the glove side. Measured in inches. |
+| **VAA** | "The angle the ball comes in at." Flat (close to 0) = comes in level, hard to hit at the top. Steep (more negative) = comes in diving down, hard to hit at the bottom. |
+| **Arm side** | The side of the pitcher's throwing arm (a righty's arm side is to the catcher's right). |
+| **Glove side** | The side of the pitcher's glove (a righty's glove side is to the catcher's left). |
+| **Spin rate (rpm)** | How fast the ball spins, in revolutions per minute. More spin usually = more movement, but only if the spin is the right kind. |
+| **Spin axis** | The direction the ball is spinning around. Like a clock face: 12:00 = pure backspin (fastball), 6:00 = pure topspin (curveball), 3:00/9:00 = pure sidespin (sweeper). |
+| **Spin efficiency** | How much of the spin actually creates movement vs. being "wasted." 100% = all spin moves the ball. Near 0% = bullet spin (gyro slider), barely moves from spin. |
+| **Magnus force** | The force that makes a spinning ball curve through the air. Backspin pushes it up (fights gravity), topspin pushes it down, sidespin pushes it sideways. |
+| **Backspin** | Spinning backward (top of the ball moving away from the throw). Creates upward Magnus force - the "rise" of a fastball. |
+| **Topspin** | Spinning forward (top of the ball moving toward the throw). Creates downward Magnus force - the drop of a curveball. |
+| **Sidespin** | Spinning sideways. Creates horizontal break - the sweep of a sweeper or run of a sinker. |
+| **Gyro / bullet spin** | Spinning like a football spiral (point-first). Almost no Magnus force, so almost no movement from spin - the pitch moves from seam effects instead. |
+| **Seam-shifted wake** | The seams on the ball push air unevenly, creating extra movement the spin alone wouldn't predict. Why some sinkers/sliders "jump" late. |
+| **Tunnel / tunneling** | Two pitches that look identical out of the hand and share the same flight path until late, then diverge. The hitter can't tell which is which until it's too late to adjust. |
+| **Extension** | How far toward home plate the pitcher releases the ball. More extension = less distance for the hitter = effectively faster. |
+| **Chase** | Getting the hitter to swing at a pitch outside the strike zone. |
+| **Whiff** | A swing-and-miss. |
+| **Platoon** | A handedness matchup (LHP vs RHH, etc.). "Platoon advantage" = hitter facing an opposite-handed pitcher. |
+
 ---
 
 ## The 8 pitches
@@ -48,6 +72,8 @@ Two numbers define a pitch's shape, both in **inches**:
 | Spin axis | Pure backspin (12:00-2:00 for RHP, 10:00-12:00 for LHP), high spin efficiency |
 
 **How it works:** Backspin generates an upward Magnus force that fights gravity. The ball does not literally rise - it falls *less* than the hitter's brain predicts from the early flight path, so it arrives higher than expected. Elite IVB (19+) at the top of the zone generates swing-and-miss because hitters swing underneath it.
+
+**In plain English:** This is the basic straight fastball - the fastest pitch, thrown as hard as you can with backspin so it cuts through the air. It doesn't actually rise (nothing can, physics says so), but because it's spinning backward it fights gravity and "falls less" than the hitter expects, so it looks like it jumps up at the last second. The harder the spin and the higher you throw it, the more hitters swing under it.
 
 **Where to throw it:** Top of the zone, at the letters. The higher the IVB, the higher you can live. Avoid the middle-bottom of the zone where the "rise" advantage disappears. Best tunnel partner is a curveball (vertical contrast) or changeup (timing disruption).
 
@@ -65,6 +91,8 @@ Two numbers define a pitch's shape, both in **inches**:
 
 **How it works:** Fingers aligned along the two seams generate sidespin, producing both downward and arm-side horizontal movement. The pitch arrives lower and further to the arm side than a 4-seam from the same release. The best sinkers add **seam-shifted wake** (asymmetric airflow from seam orientation), adding 6-9 in of extra drop beyond what spin predicts - the "heavy" feel.
 
+**In plain English:** A slower, "heavier" fastball that drops and runs to one side instead of staying straight. You grip it along two seams instead of four, so it spins sideways and sinks down + sideways as it reaches the plate. Hitters hit it into the ground (ground balls) instead of hitting it in the air - that's the whole point. It's not a strikeout pitch, it's a "get me a weak grounder for a double play" pitch.
+
 **Where to throw it:** Down and to the arm side, especially on the corners. The goal is ground balls, not whiffs. Aim at the front hip of an opposite-handed hitter to jam them, or just off the plate arm-side to induce weak rollover contact. Pairs with a slider/sweeper for arm-side/glove-side contrast.
 
 ---
@@ -80,6 +108,8 @@ Two numbers define a pitch's shape, both in **inches**:
 | Spin axis | Slight gyro shift off a 4-seam, mostly backspin with a touch of sidespin |
 
 **How it works:** Slight off-center fingertip pressure shifts the spin axis just enough to move the pitch glove-side with less IVB than a 4-seam. It looks like a fastball out of the hand, then cuts late across the plate. Mariano Rivera made it the most dominant single pitch in history; Corbin Burnes built a Cy Young arsenal around it.
+
+**In plain English:** A fastball that veers slightly to the side (toward the pitcher's glove) instead of going straight. It's halfway between a fastball and a slider - fast enough to look like a fastball out of your hand, but it darts a few inches sideways just before the plate, jamming hitters and breaking bats. Not as fast as a 4-seam, not as slow/breaky as a slider - the "in between" pitch.
 
 **Where to throw it:** On the hands of opposite-handed hitters (a RHP's cutter runs into a LHH's hands, breaking bats and producing weak contact). Also effective on the outside corner to same-handed hitters for called strikes. Pairs with the 4-seam (same tunnel, different late movement).
 
@@ -97,6 +127,8 @@ Two numbers define a pitch's shape, both in **inches**:
 
 **How it works:** A gyro slider (sometimes called a "bullet spin" slider) has its spin axis pointing almost directly at the target, so the Magnus force is minimal and the ball moves very little from spin. Its deception comes from **seam-shifted wake**: the asymmetric seam orientation creates pressure differential late in flight, producing a sharp, late, shorter break than a sweeper. It tunnels exceptionally well off a fastball because the early flight path is nearly identical. Near-zero spin efficiency is the defining trait (vs. a sweeper's high-efficiency side spin).
 
+**In plain English:** A slider that barely spins usefully - the ball spins like a bullet flying forward (point-first), so the spin doesn't really push it anywhere. Instead, the seams on the ball catch the air unevenly late in flight, making it dart sharply at the last second. It looks just like a fastball for most of its path, then jumps a few inches. It's the "sneaky late break" slider - shorter and sharper than a sweeper, great for fooling hitters who already committed to a fastball.
+
 **Where to throw it:** Back-foot to same-handed hitters (a RHP's gyro slider ends at a RHH's back foot) for chase, or just below the zone for swing-and-miss. The late, compact break makes it hard to identify and square up. Pairs with a high-IVB 4-seam for tunnel + late divergence.
 
 ---
@@ -112,6 +144,8 @@ Two numbers define a pitch's shape, both in **inches**:
 | Spin axis | Nearly pure gyroscopic/side spin, high spin efficiency |
 
 **How it works:** The signature pitch of the 2020s. Nearly pure side spin produces extreme horizontal movement with minimal vertical drop - it sweeps across the zone from arm side to glove side. Popularized by the Dodgers and Yankees; Adam Ottavino, Shohei Ohtani, Yu Darvish, and Nestor Cortes are the prominent practitioners. Against same-sided hitters it exits the zone entirely for chase; against opposite-handed hitters it breaks across the plate as a strike.
+
+**In plain English:** A slider that moves SIDEWAYS a lot instead of down. Think of it as a "wide slider" - it breaks 16-22 inches to the pitcher's glove side, sweeping across the plate like a broom. To a same-handed hitter it starts over the plate then sweeps off the outside corner (they chase it and miss); to an opposite-handed hitter it sweeps back over the corner for a strike. It's the trendiest pitch in baseball because it gets swings-and-misses on pitches outside the zone.
 
 **Where to throw it:** Off the outside corner to same-handed hitters (the pitch chases them out of the zone), or back-foot for swing-and-miss. Against opposite-handed hitters, the back door or back foot. Pairs with a 4-seam for horizontal contrast - hitters must defend the full width of the zone on every pitch.
 
@@ -129,6 +163,8 @@ Two numbers define a pitch's shape, both in **inches**:
 
 **How it works:** The oldest breaking ball. 12-to-6 topspin generates a sharp downward Magnus force, so the ball drops well below where a spinless pitch would land. A good curve from a high release can drop 14-16 in. The big arc gives hitters more time to identify it, so release-point consistency and tunnel quality separate elite from hittable curves.
 
+**In plain English:** The classic "drop off the table" pitch. You spin it forward (topspin) so it dives straight down - imagine the ball dropping from 12 o'clock to 6 o'clock on a clock face. It's much slower than a fastball (often 15+ mph slower), with a big looping arc that drops sharply at the end. Hitters swing over the top of it. It's slower and "loopier" than a slider, so hitters have more time to see it coming - that's why it has to be thrown with the exact same arm motion as your fastball or they'll know it's coming.
+
 **Where to throw it:** Below the zone for swing-and-miss (the "get me over" version is middle-middle for a called strike early in the count). The 0-0 or 1-0 get-ahead curve is a staple. Back-foot to same-handed hitters for chase. Pairs with a high-IVB 4-seam for the maximum vertical contrast (19 in up vs. -16 in down).
 
 ---
@@ -145,6 +181,8 @@ Two numbers define a pitch's shape, both in **inches**:
 
 **How it works:** Fingers spread wide on either side of the ball strip away backspin. The pitch starts on a fastball plane (same arm speed, same release) then drops sharply below the zone - 6-10 in more than a 4-seam from the same release. The late drop after the tunnel point is the primary weapon. Paul Skenes's "splinker" (splitter-sinker hybrid) is the modern benchmark. Long a NPB staple, it swept MLB in the 2020s.
 
+**In plain English:** A pitch that looks exactly like a fastball out of your hand but suddenly drops straight down right before the plate. You grip it with your fingers split wide apart on the sides of the ball, which kills the spin, so gravity takes over and it "falls off a cliff." Hitters swing where they think the fastball is going to be, and the ball drops under their bat. It's slower than a fastball but faster than a changeup, and the whole trick is the late downward drop.
+
 **Where to throw it:** Just below the zone, starting at the knees. The hitter commits to a fastball path and swings over the top of it. Effective in pitcher's counts (0-2, 1-2) for chase, and as a surprise first-pitch strike. Pairs with a 4-seam for the fastball/splitter tunnel.
 
 ---
@@ -160,6 +198,8 @@ Two numbers define a pitch's shape, both in **inches**:
 | Spin axis | Reduced backspin vs. fastball, some sidespin |
 
 **How it works:** The most tunnel-dependent pitch in baseball. Thrown with fastball arm speed but a grip that reduces backspin (ball deeper in the hand), it arrives 8-12 mph slower. The hitter commits to a fastball-speed prediction and the bat arrives early. Late arm-side fade adds a second deception layer. Three main grips: **circle change** (max arm-side fade/depth), **palmball** (lower spin, similar fade), **vulcan** (split middle/ring fingers for tumbling action).
+
+**In plain English:** A "slow fastball" - you throw it with the exact same arm motion as your fastball, but a special grip (usually the circle change, making an "OK" sign with your thumb and index finger) makes the ball come out 8-12 mph slower. The hitter sees fastball arm speed and swings as if it's a fastball, but the ball is late, so they swing way out in front of it. It also drifts slightly to the side (arm-side fade). The whole point is fooling their TIMING, not their eyes - it only works if it looks identical to your fastball coming out of your hand.
 
 **Where to throw it:** Down and arm-side, mirroring the 4-seam tunnel. Best counts: 1-0, 2-1, 3-2 (especially after a missed fastball), and any hitter's count where the hitter is timing the heater. Against opposite-handed hitters it fades away from the barrel. Useless without a convincing fastball tunnel - a changeup with no tunnel is just a slow pitch.
 
@@ -290,7 +330,7 @@ Platoon splits are the most persistent and predictive splits in baseball. The ru
 ### Rulebook zone
 
 - **Plate width:** 17 inches. Ball diameter ~2.86-2.94 in. A pitch is a strike if any part of the ball crosses any part of the plate's horizontal projection, so the effective width is ~17 + ~2.9 = **~20 in (1.67 ft)**.
-- **Vertical zone:** midpoint between the top of the pants and the hollow beneath the kneecap (bottom) to the midpoint between the shoulders and the top of the uniform pants (top). Typical MLB zone: ~1.5 ft (bottom) to ~3.5 ft (top) for an average hitter. **Scales with hitter height** - tall hitters have a taller zone.
+- **Vertical zone:** top = the midpoint between the batter's shoulders and the top of the uniform pants; bottom = the hollow beneath the kneecap (per the official rule). Typical MLB zone: ~1.5 ft (bottom, hollow beneath kneecap) to ~3.5 ft (top) for an average hitter. **Scales with hitter height** - tall hitters have a taller zone.
 - **MLB umpire zone has tightened** over the Statcast era (smaller, more rulebook-accurate), per FanGraphs tracking.
 
 ### Statcast's 4 Attack Regions (the modern zone model)
