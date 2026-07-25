@@ -1,0 +1,516 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#0d1117">
+<title>PitchCall</title>
+<style>
+  :root {
+    --bg: #0d1117;
+    --panel: #161d26;
+    --panel-2: #1c242f;
+    --line: #2a3542;
+    --ink: #e6edf3;
+    --dim: #8b98a5;
+    --accent: #b6f09c;
+    --accent-ink: #16240f;
+    --chase: #f0b95c;
+    --danger: #f0705c;
+    --radius: 14px;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; padding: 0; background: var(--bg); color: var(--ink);
+    font-family: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    font-weight: 600;
+    overscroll-behavior: none;
+  }
+  body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
+
+  .wrap { max-width: 1400px; margin: 0 auto; padding: 14px 16px 22px; }
+
+  header.bar { display: flex; align-items: center; gap: 12px; margin-bottom: 14px; }
+  .logo { font-size: 26px; font-weight: 800; letter-spacing: -0.5px; }
+  .logo b { color: var(--accent); }
+  .subtitle { color: var(--dim); font-size: 12px; letter-spacing: 1.6px; text-transform: uppercase; }
+  .bar-actions { margin-left: auto; display: flex; gap: 10px; }
+
+  button {
+    font: inherit; color: inherit; background: var(--panel-2);
+    border: 1px solid var(--line); border-radius: 11px;
+    padding: 12px 16px; cursor: pointer; transition: background .12s, border-color .12s, transform .06s;
+  }
+  button:active { transform: scale(.97); }
+  button.ghost { background: transparent; }
+  button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  button.warn { color: var(--danger); border-color: #4a2b28; background: #241716; }
+
+  .grid-main { display: grid; grid-template-columns: minmax(320px, 6fr) minmax(400px, 8fr); gap: 14px; align-items: start; }
+  .col { display: flex; flex-direction: column; gap: 14px; }
+
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: var(--radius); padding: 14px; }
+  .panel-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 12px; }
+  .panel-title { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink); }
+  .panel-hint { margin-left: auto; color: var(--dim); font-size: 11px; font-weight: 600; }
+
+  /* ---- zone ---- */
+  .zone-row { display: flex; gap: 12px; align-items: stretch; }
+  .zone-stage { flex: 1; border: 1px dashed var(--line); border-radius: 12px; padding: 10px; background: #121922; }
+  .hand-rail {
+    width: 62px; border-radius: 12px; border: 1px solid var(--line); background: var(--panel-2);
+    display: flex; align-items: center; justify-content: center; cursor: pointer;
+    writing-mode: vertical-rl; text-orientation: mixed; letter-spacing: 5px; font-size: 13px;
+    text-transform: uppercase; transition: background .12s, box-shadow .12s;
+  }
+  .hand-rail.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); box-shadow: 0 0 22px rgba(182,240,156,.25); }
+
+  .zone-grid { display: grid; grid-template-columns: repeat(5, 1fr); grid-template-rows: repeat(5, 1fr); aspect-ratio: 1 / 1.06; gap: 0; position: relative; }
+  .zcell { border: 1px solid transparent; position: relative; cursor: pointer; }
+  .zcell.inzone { border-color: #3b4a5c; }
+  .zcell:active { background: rgba(182,240,156,.10); }
+  .zcell .dot {
+    position: absolute; inset: 0; margin: auto; width: 20px; height: 20px; border-radius: 50%;
+    background: #f5c451; box-shadow: 0 0 16px 4px rgba(245,196,81,.5); display: none;
+  }
+  .zcell.marked .dot { display: block; }
+  .plate { display: flex; justify-content: center; margin-top: 6px; }
+  .plate svg { opacity: .5; }
+
+  /* ---- velo ---- */
+  .velo-head { display: flex; align-items: flex-end; }
+  .velo-val { margin-left: auto; font-size: 34px; font-weight: 800; color: var(--accent); line-height: 1; }
+  .velo-val span { font-size: 13px; color: var(--dim); margin-left: 4px; font-weight: 700; }
+  input[type=range] { width: 100%; margin: 10px 0 2px; accent-color: var(--accent); height: 34px; }
+  .ticks { display: flex; justify-content: space-between; color: var(--dim); font-size: 11px; }
+
+  /* ---- small panels row ---- */
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+  .stepper { display: flex; gap: 10px; }
+  .step-grp { flex: 1; text-align: center; }
+  .step-lbl { font-size: 10px; letter-spacing: 1.4px; color: var(--dim); text-transform: uppercase; margin-bottom: 6px; }
+  .step-ctl { display: flex; align-items: center; justify-content: space-between; background: var(--panel-2); border: 1px solid var(--line); border-radius: 11px; padding: 6px 10px; }
+  .step-ctl button { background: none; border: none; padding: 6px 10px; font-size: 20px; color: var(--dim); }
+  .step-ctl .num { font-size: 24px; font-weight: 800; min-width: 26px; }
+
+  .seg { display: flex; gap: 8px; }
+  .seg button { flex: 1; }
+
+  /* ---- pitch type buttons ---- */
+  .pt-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+
+  /* ---- table ---- */
+  table { width: 100%; border-collapse: separate; border-spacing: 0 6px; }
+  th { font-size: 10px; letter-spacing: 1.3px; color: var(--dim); text-transform: uppercase; text-align: center; font-weight: 700; padding-bottom: 2px; }
+  th:first-child { text-align: left; padding-left: 8px; }
+  td { background: var(--panel-2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); text-align: center; padding: 0; }
+  td:first-child { border-left: 1px solid var(--line); border-radius: 10px 0 0 10px; text-align: left; padding-left: 12px; font-size: 14px; }
+  td:last-child { border-right: 1px solid var(--line); border-radius: 0 10px 10px 0; }
+  tr.filled td:first-child { color: var(--accent); }
+  tr.empty td:first-child { color: var(--dim); font-weight: 600; }
+  td input {
+    width: 100%; background: none; border: none; color: inherit; font: inherit; text-align: center;
+    padding: 13px 4px; font-size: 15px; font-weight: 700;
+  }
+  td input:focus { outline: none; background: rgba(182,240,156,.08); }
+  td input::placeholder { color: #55626f; }
+
+  /* ---- recommendations ---- */
+  .go-row { display: grid; grid-template-columns: minmax(180px, 3fr) 9fr; gap: 14px; margin-top: 14px; align-items: stretch; }
+  #go {
+    background: var(--accent); color: var(--accent-ink); border: none; border-radius: var(--radius);
+    font-size: 46px; font-weight: 800; letter-spacing: 1px; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 4px; box-shadow: 0 0 34px rgba(182,240,156,.22);
+  }
+  #go small { font-size: 12px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; opacity: .65; }
+  .badge { font-size: 10px; letter-spacing: 1.2px; padding: 4px 9px; border-radius: 999px; text-transform: uppercase; font-weight: 800; }
+  .badge.demo { background: #3a2d16; color: var(--chase); border: 1px solid #5a4520; }
+  .rec-list { display: flex; flex-direction: column; gap: 8px; }
+  .rec {
+    display: grid; grid-template-columns: 34px minmax(96px, 2fr) 3fr auto; align-items: center; gap: 12px;
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 11px; padding: 11px 14px;
+  }
+  .rec .rank { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--dim); }
+  .rec.top .rank { border-color: var(--accent); color: var(--accent); }
+  .rec .type { font-size: 17px; font-weight: 800; }
+  .rec .loc { color: var(--ink); font-size: 15px; }
+  .tag { font-size: 11px; letter-spacing: 1.1px; font-weight: 800; padding: 5px 12px; border-radius: 999px; }
+  .tag.strike { background: rgba(182,240,156,.14); color: var(--accent); border: 1px solid rgba(182,240,156,.35); }
+  .tag.chase { background: rgba(240,185,92,.14); color: var(--chase); border: 1px solid rgba(240,185,92,.35); }
+  .rec-empty { color: var(--dim); font-size: 13px; padding: 18px; text-align: center; border: 1px dashed var(--line); border-radius: 11px; }
+
+  @media (max-width: 900px) {
+    .grid-main, .go-row, .row2 { grid-template-columns: 1fr; }
+    #go { padding: 22px; font-size: 38px; }
+  }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header class="bar">
+    <div class="logo">Pitch<b>Call</b></div>
+    <div class="subtitle">In-Game Pitch Caller</div>
+    <div class="bar-actions">
+      <button class="ghost" id="newAtBat">New At-Bat</button>
+      <button class="warn" id="fullReset">Full Reset</button>
+    </div>
+  </header>
+
+  <div class="grid-main">
+    <!-- LEFT COLUMN -->
+    <div class="col">
+      <section class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Batter &amp; Last Pitch Location</div>
+          <div class="panel-hint">tap the zone to mark the pitch</div>
+        </div>
+        <div class="zone-row">
+          <div class="hand-rail" id="battRight" data-hand="R">Righty</div>
+          <div class="zone-stage">
+            <div class="zone-grid" id="zoneGrid"></div>
+            <div class="plate">
+              <svg width="90" height="26" viewBox="0 0 90 26"><path d="M6 2 H84 L84 10 L45 24 L6 10 Z" fill="none" stroke="#7c8b99" stroke-width="2"/></svg>
+            </div>
+          </div>
+          <div class="hand-rail" id="battLeft" data-hand="L">Lefty</div>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="velo-head">
+          <div class="panel-title">Velocity &mdash; Pitch Just Thrown</div>
+          <div class="velo-val" id="veloVal">94<span>MPH</span></div>
+        </div>
+        <input type="range" id="velo" min="60" max="106" step="1" value="94">
+        <div class="ticks"><span>60</span><span>70</span><span>80</span><span>90</span><span>100</span><span>106</span></div>
+      </section>
+
+      <div class="row2">
+        <section class="panel">
+          <div class="panel-head"><div class="panel-title">Count</div></div>
+          <div class="stepper">
+            <div class="step-grp">
+              <div class="step-lbl">Balls</div>
+              <div class="step-ctl"><button data-c="balls" data-d="-1">&minus;</button><div class="num" id="balls">0</div><button data-c="balls" data-d="1">+</button></div>
+            </div>
+            <div class="step-grp">
+              <div class="step-lbl">Strikes</div>
+              <div class="step-ctl"><button data-c="strikes" data-d="-1">&minus;</button><div class="num" id="strikes">0</div><button data-c="strikes" data-d="1">+</button></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="panel">
+          <div class="panel-head"><div class="panel-title">Pitcher Handedness</div></div>
+          <div class="seg" id="pitchHand">
+            <button data-hand="L">Left</button>
+            <button data-hand="R" class="on">Right</button>
+          </div>
+        </section>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="col">
+      <section class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Timing</div>
+          <div class="panel-hint">how the hitter was on the last pitch</div>
+        </div>
+        <div class="seg" id="timing">
+          <button data-t="early">Early</button>
+          <button data-t="late">Late</button>
+          <button data-t="ontime">On Time</button>
+          <button data-t="unknown" class="on">Unknown</button>
+        </div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Pitch Type &mdash; Just Thrown</div>
+          <div class="panel-hint">auto-sets velo from pitcher averages</div>
+        </div>
+        <div class="pt-grid" id="ptGrid"></div>
+      </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Pitcher Average Movements</div>
+          <div class="panel-hint">set pregame &middot; tap any cell</div>
+        </div>
+        <table>
+          <thead>
+            <tr><th>Pitch</th><th>Velo</th><th>Vert</th><th>Horz</th></tr>
+          </thead>
+          <tbody id="avgBody"></tbody>
+        </table>
+      </section>
+    </div>
+  </div>
+
+  <div class="go-row">
+    <button id="go">GO<small>Get next pitch</small></button>
+    <section class="panel">
+      <div class="panel-head">
+        <div class="panel-title">Next Pitch Recommendations</div>
+        <span class="badge demo" id="engineBadge">Awaiting Spec</span>
+        <div class="panel-hint">Strike / Chase</div>
+      </div>
+      <div class="rec-list" id="recList">
+        <div class="rec-empty">Set the pitcher's averages, mark the last pitch, then press GO.</div>
+      </div>
+    </section>
+  </div>
+
+</div>
+
+<script>
+"use strict";
+
+const PITCH_TYPES = ["4 Seam", "Sinker", "Cutter", "Gyro", "Sweeper", "Curve", "Split", "Change"];
+
+const state = {
+  batterHand: "R",
+  pitcherHand: "R",
+  timing: "unknown",
+  lastPitchType: null,
+  velo: 94,
+  balls: 0,
+  strikes: 0,
+  lastLoc: null,            // {col, row} on the 5x5 grid, 0-indexed from top-left
+  averages: {},             // pitchType -> {velo, vert, horz}
+  recommendations: []
+};
+
+PITCH_TYPES.forEach(p => { state.averages[p] = { velo: null, vert: null, horz: null }; });
+
+/* ---------------- persistence ---------------- */
+const STORE_KEY = "pitchcall.v1";
+function save() {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify({
+      averages: state.averages, pitcherHand: state.pitcherHand, batterHand: state.batterHand
+    }));
+  } catch (e) { /* private browsing */ }
+}
+function load() {
+  try {
+    const raw = localStorage.getItem(STORE_KEY);
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    if (d.averages) Object.keys(state.averages).forEach(k => { if (d.averages[k]) state.averages[k] = d.averages[k]; });
+    if (d.pitcherHand) state.pitcherHand = d.pitcherHand;
+    if (d.batterHand) state.batterHand = d.batterHand;
+  } catch (e) { /* corrupt */ }
+}
+
+/* ---------------- zone grid ----------------
+   5x5 grid. Inner 3x3 (cols/rows 1..3) is the rulebook strike zone.
+   The outer ring is the chase/shadow region off the plate.
+   Column index increases left-to-right from the catcher's view.
+-------------------------------------------- */
+const zoneGrid = document.getElementById("zoneGrid");
+for (let row = 0; row < 5; row++) {
+  for (let col = 0; col < 5; col++) {
+    const cell = document.createElement("div");
+    cell.className = "zcell" + (row >= 1 && row <= 3 && col >= 1 && col <= 3 ? " inzone" : "");
+    cell.dataset.col = col;
+    cell.dataset.row = row;
+    cell.innerHTML = '<div class="dot"></div>';
+    cell.addEventListener("click", () => {
+      state.lastLoc = { col, row };
+      renderZone();
+    });
+    zoneGrid.appendChild(cell);
+  }
+}
+function renderZone() {
+  [...zoneGrid.children].forEach(c => {
+    const hit = state.lastLoc && +c.dataset.col === state.lastLoc.col && +c.dataset.row === state.lastLoc.row;
+    c.classList.toggle("marked", !!hit);
+  });
+}
+
+/* ---------------- pitch type buttons ---------------- */
+const ptGrid = document.getElementById("ptGrid");
+PITCH_TYPES.forEach(p => {
+  const b = document.createElement("button");
+  b.textContent = p;
+  b.dataset.pt = p;
+  b.addEventListener("click", () => {
+    state.lastPitchType = p;
+    const avgVelo = state.averages[p] && state.averages[p].velo;
+    if (avgVelo != null && !Number.isNaN(avgVelo)) setVelo(avgVelo);
+    renderPitchTypes();
+  });
+  ptGrid.appendChild(b);
+});
+function renderPitchTypes() {
+  [...ptGrid.children].forEach(b => b.classList.toggle("on", b.dataset.pt === state.lastPitchType));
+}
+
+/* ---------------- averages table ---------------- */
+const avgBody = document.getElementById("avgBody");
+function buildTable() {
+  avgBody.innerHTML = "";
+  PITCH_TYPES.forEach(p => {
+    const tr = document.createElement("tr");
+    const nameTd = document.createElement("td");
+    nameTd.textContent = p;
+    tr.appendChild(nameTd);
+    ["velo", "vert", "horz"].forEach(field => {
+      const td = document.createElement("td");
+      const input = document.createElement("input");
+      input.type = "text";
+      input.inputMode = "numbers-and-punctuation";
+      input.placeholder = "\u2014";
+      input.value = formatField(state.averages[p][field], field);
+      input.addEventListener("input", () => {
+        const v = parseField(input.value);
+        state.averages[p][field] = v;
+        markRow(tr, p);
+        save();
+      });
+      input.addEventListener("blur", () => { input.value = formatField(state.averages[p][field], field); });
+      td.appendChild(input);
+      tr.appendChild(td);
+    });
+    markRow(tr, p);
+    avgBody.appendChild(tr);
+  });
+}
+function markRow(tr, p) {
+  const a = state.averages[p];
+  const filled = a.velo != null;
+  tr.classList.toggle("filled", filled);
+  tr.classList.toggle("empty", !filled);
+}
+function parseField(str) {
+  const s = String(str).trim().replace(/^\+/, "");
+  if (s === "" || s === "\u2014" || s === "-") return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+function formatField(v, field) {
+  if (v == null) return "";
+  if (field === "velo") return String(v);
+  return (v > 0 ? "+" : "") + v;
+}
+
+/* ---------------- velocity ---------------- */
+const veloInput = document.getElementById("velo");
+const veloVal = document.getElementById("veloVal");
+function setVelo(v) {
+  state.velo = Math.max(+veloInput.min, Math.min(+veloInput.max, Math.round(v)));
+  veloInput.value = state.velo;
+  veloVal.innerHTML = state.velo + "<span>MPH</span>";
+}
+veloInput.addEventListener("input", () => setVelo(+veloInput.value));
+
+/* ---------------- handedness ---------------- */
+const battRight = document.getElementById("battRight");
+const battLeft = document.getElementById("battLeft");
+[battRight, battLeft].forEach(el => el.addEventListener("click", () => {
+  state.batterHand = el.dataset.hand;
+  renderBatterHand();
+  save();
+}));
+function renderBatterHand() {
+  battRight.classList.toggle("on", state.batterHand === "R");
+  battLeft.classList.toggle("on", state.batterHand === "L");
+}
+
+const pitchHand = document.getElementById("pitchHand");
+pitchHand.addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  state.pitcherHand = b.dataset.hand;
+  [...pitchHand.children].forEach(x => x.classList.toggle("on", x === b));
+  save();
+});
+
+/* ---------------- timing ---------------- */
+const timingSeg = document.getElementById("timing");
+timingSeg.addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  state.timing = b.dataset.t;
+  [...timingSeg.children].forEach(x => x.classList.toggle("on", x === b));
+});
+
+/* ---------------- count ---------------- */
+document.querySelectorAll("[data-c]").forEach(b => {
+  b.addEventListener("click", () => {
+    const key = b.dataset.c;
+    const max = key === "balls" ? 3 : 2;
+    state[key] = Math.max(0, Math.min(max, state[key] + (+b.dataset.d)));
+    renderCount();
+  });
+});
+function renderCount() {
+  document.getElementById("balls").textContent = state.balls;
+  document.getElementById("strikes").textContent = state.strikes;
+}
+
+/* ---------------- reset ---------------- */
+document.getElementById("newAtBat").addEventListener("click", () => {
+  state.balls = 0; state.strikes = 0;
+  state.lastLoc = null; state.lastPitchType = null; state.timing = "unknown";
+  state.recommendations = [];
+  renderAll();
+});
+document.getElementById("fullReset").addEventListener("click", () => {
+  PITCH_TYPES.forEach(p => { state.averages[p] = { velo: null, vert: null, horz: null }; });
+  state.balls = 0; state.strikes = 0; state.lastLoc = null; state.lastPitchType = null;
+  state.timing = "unknown"; state.recommendations = [];
+  try { localStorage.removeItem(STORE_KEY); } catch (e) {}
+  buildTable();
+  renderAll();
+});
+
+/* ---------------- engine hook ----------------
+   Replaced by the spec'd deterministic scoring engine.
+-------------------------------------------- */
+function recommend() { return []; }
+
+const recList = document.getElementById("recList");
+document.getElementById("go").addEventListener("click", () => {
+  state.recommendations = recommend();
+  renderRecs();
+});
+function renderRecs() {
+  const recs = state.recommendations;
+  if (!recs.length) {
+    recList.innerHTML = '<div class="rec-empty">Engine not wired yet \u2014 awaiting the domain spec.</div>';
+    return;
+  }
+  recList.innerHTML = "";
+  recs.slice(0, 5).forEach((r, i) => {
+    const row = document.createElement("div");
+    row.className = "rec" + (i === 0 ? " top" : "");
+    row.innerHTML =
+      '<div class="rank">' + (i + 1) + "</div>" +
+      '<div class="type"></div><div class="loc"></div>' +
+      '<span class="tag ' + (r.intent === "chase" ? "chase" : "strike") + '">' + (r.intent === "chase" ? "Chase" : "Strike") + "</span>";
+    row.querySelector(".type").textContent = r.type;
+    row.querySelector(".loc").textContent = r.locationName;
+    recList.appendChild(row);
+  });
+}
+
+/* ---------------- boot ---------------- */
+function renderAll() {
+  renderZone(); renderPitchTypes(); renderBatterHand(); renderCount(); renderRecs();
+  setVelo(state.velo);
+  [...pitchHand.children].forEach(x => x.classList.toggle("on", x.dataset.hand === state.pitcherHand));
+  [...timingSeg.children].forEach(x => x.classList.toggle("on", x.dataset.t === state.timing));
+}
+load();
+buildTable();
+renderAll();
+</script>
+</body>
+</html>
