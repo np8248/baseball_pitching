@@ -108,6 +108,14 @@
 
   /* ---- pitch type buttons ---- */
   .pt-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+  .pt-grid button { position: relative; }
+  .pt-grid button.has-data { border-color: #b8c5d6; color: var(--accent); }
+  .pt-grid button.has-data::after {
+    content: ""; position: absolute; top: 7px; right: 8px; width: 6px; height: 6px;
+    border-radius: 50%; background: var(--accent);
+  }
+  .pt-grid button.has-data.on { color: var(--accent-ink); }
+  .pt-grid button.has-data.on::after { background: var(--accent-ink); opacity: .7; }
 
   /* ---- table ---- */
   table { width: 100%; border-collapse: separate; border-spacing: 0 6px; }
@@ -118,6 +126,8 @@
   td:last-child { border-right: 1px solid var(--line); border-radius: 0 11px 11px 0; }
   tr.filled td:first-child { color: var(--accent); font-weight: 800; }
   tr.empty td:first-child { color: var(--dim); font-weight: 600; }
+  tr.selected td { background: var(--accent-soft); border-color: #c7d4f7; }
+  tr.selected td:first-child { box-shadow: inset 3px 0 0 var(--accent); }
   td input {
     width: 100%; background: none; border: none; color: var(--ink); font: inherit; text-align: center;
     padding: 13px 4px; font-size: 15px; font-weight: 700;
@@ -359,7 +369,15 @@ PITCH_TYPES.forEach(p => {
   ptGrid.appendChild(b);
 });
 function renderPitchTypes() {
-  [...ptGrid.children].forEach(b => b.classList.toggle("on", b.dataset.pt === state.lastPitchType));
+  [...ptGrid.children].forEach(b => {
+    b.classList.toggle("on", b.dataset.pt === state.lastPitchType);
+    const a = state.averages[b.dataset.pt];
+    b.classList.toggle("has-data", a && a.velo != null);
+  });
+  // highlight the selected pitch's row in the averages table
+  [...avgBody.children].forEach(tr => {
+    tr.classList.toggle("selected", tr.dataset.pitch === state.lastPitchType);
+  });
 }
 
 /* ---------------- averages table ---------------- */
@@ -368,6 +386,7 @@ function buildTable() {
   avgBody.innerHTML = "";
   PITCH_TYPES.forEach(p => {
     const tr = document.createElement("tr");
+    tr.dataset.pitch = p;
     const nameTd = document.createElement("td");
     nameTd.textContent = p;
     tr.appendChild(nameTd);
@@ -382,6 +401,7 @@ function buildTable() {
         const v = parseField(input.value);
         state.averages[p][field] = v;
         markRow(tr, p);
+        renderPitchTypes(); // update pitch-button has-data state live
         save();
       });
       input.addEventListener("blur", () => { input.value = formatField(state.averages[p][field], field); });
@@ -391,6 +411,7 @@ function buildTable() {
     markRow(tr, p);
     avgBody.appendChild(tr);
   });
+  renderPitchTypes(); // refresh button data-state after table rebuild
 }
 function markRow(tr, p) {
   const a = state.averages[p];
