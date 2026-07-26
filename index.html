@@ -737,6 +737,8 @@ const state = {
   relH: 6.0,                // release height in ft
   custom: null,             // blank per-batter profile, cleared on New At-Bat
   savedBatters: [],          // user-saved batter profiles, persist across sessions
+  pitchHistory: [],          // [{type, velo, loc, result, timing}] for current at-bat
+  lastResult: null,          // result of the most recent pitch: strike/ball/foul/whiff/out/hit
   recommendations: []
 };
 
@@ -1233,6 +1235,18 @@ resultGrid.addEventListener("click", e => {
   [...resultGrid.children].forEach(x => x.classList.remove("on"));
   b.classList.add("on");
 
+  // record this pitch in history before updating anything
+  if (state.lastPitchType) {
+    state.pitchHistory.push({
+      type: state.lastPitchType,
+      velo: state.velo,
+      loc: state.lastLoc ? { x: state.lastLoc.x, y: state.lastLoc.y } : null,
+      result: r,
+      timing: state.timing
+    });
+    state.lastResult = r;
+  }
+
   if (r === "strike" || r === "whiff") {
     if (state.strikes < 2) state.strikes++;
   } else if (r === "ball") {
@@ -1244,6 +1258,7 @@ resultGrid.addEventListener("click", e => {
     state.balls = 0; state.strikes = 0;
     state.lastLoc = null; state.lastPitchType = null; state.timing = "unknown";
     state.recommendations = []; state.custom = null;
+    state.pitchHistory = []; state.lastResult = null;
     [...resultGrid.children].forEach(x => x.classList.remove("on"));
     renderAll();
     return;
@@ -1270,6 +1285,7 @@ document.getElementById("newAtBat").addEventListener("click", () => {
   state.balls = 0; state.strikes = 0;
   state.lastLoc = null; state.lastPitchType = null; state.timing = "unknown";
   state.recommendations = []; state.custom = null;
+  state.pitchHistory = []; state.lastResult = null;
   [...resultGrid.children].forEach(x => x.classList.remove("on"));
   renderAll();
 });
@@ -1277,6 +1293,7 @@ document.getElementById("fullReset").addEventListener("click", () => {
   PITCH_TYPES.forEach(p => { state.averages[p] = { velo: null, vert: null, horz: null }; });
   state.balls = 0; state.strikes = 0; state.lastLoc = null; state.lastPitchType = null;
   state.timing = "unknown"; state.recommendations = [];
+  state.pitchHistory = []; state.lastResult = null;
   try { localStorage.removeItem(STORE_KEY); } catch (e) {}
   buildTable();
   renderAll();
@@ -1462,7 +1479,9 @@ function scorePitch(pitch) {
   const fl = flight(velo, ivb, horz);
   if (lastType && lastType !== pitch) {
     const la = state.averages[lastType] || {}, lr = REF[lastType];
-    const prev = flight(la.velo != null ? la.velo : lr.velo,
+    // use the actual velocity you recorded (slider), not the arsenal average
+    const prevVelo = state.velo != null ? state.velo : (la.velo != null ? la.velo : lr.velo);
+    const prev = flight(prevVelo,
                         la.vert != null ? la.vert : lr.ivb,
                         la.horz != null ? la.horz : lr.horz);
     const tn = tunnel(fl, prev);
@@ -1593,6 +1612,40 @@ function scorePitch(pitch) {
     if (timePts >= 1) reasons.push("Flight time " + fl.t.toFixed(3) + "s - less reaction time to read it <span class='pos'>+" + Math.round(timePts) + "</span>");
   }
 
+  // --- 8. at-bat history: did this pitch work before this at-bat? ---
+  const hist = state.pitchHistory || [];
+  if (hist.length > 0) {
+    // same pitch type results
+    const sameType = hist.filter(h => h.type === pitch);
+    const whiffs = sameType.filter(h => h.result === "whiff").length;
+    const hits = sameType.filter(h => h.result === "hit" || h.result === "out").length;
+    const fouls = sameType.filter(h => h.result === "foul").length;
+    const calledStrikes = sameType.filter(h => h.result === "strike").length;
+    const balls = sameType.filter(h => h.result === "ball").length;
+
+    if (whiffs > 0) { const pts = whiffs * 8; score += pts; reasons.push("He whiffed at " + (whiffs === 1 ? "this pitch" : whiffs + " of these") + " this at-bat - go back to it <span class='pos'>+" + pts + "</span>"); }
+    if (hits > 0) { const pts = hits * 8; score -= pts; reasons.push("He " + (hits === 1 ? "put this in play" : "put " + hits + " of these in play") + " this at-bat - avoid it <span class='neg'>-" + pts + "</span>"); }
+    if (fouls > 0) { const pts = fouls * 4; score -= pts; reasons.push("He fouled off " + (fouls === 1 ? "this pitch" : fouls + " of these") + " - he's on it <span class='neg'>-" + pts + "</span>"); }
+    if (calledStrikes > 0 && !whiffs) { const pts = calledStrikes * 4; score += pts; reasons.push("Took " + (calledStrikes === 1 ? "this pitch" : calledStrikes + " of these") + " for a called strike - it worked <span class='pos'>+" + pts + "</span>"); }
+    if (balls > 0 && !whiffs && !calledStrikes) { const pts = balls * 3; score -= pts; reasons.push("" + (balls === 1 ? "This pitch" : balls + " of these") + " missed the zone - don't repeat it <span class='neg'>-" + pts + "</span>"); }
+
+    // location history: did he chase or hit in this area?
+    if (state.lastLoc) {
+      const nearby = hist.filter(h => h.loc && Math.hypot(h.loc.x - x, h.loc.y - y) < 1.2);
+      const chasedHere = nearby.filter(h => h.result === "whiff" || h.result === "foul").length;
+      const hitHere = nearby.filter(h => h.result === "hit" || h.result === "out").length;
+      if (chasedHere > 0) { const pts = chasedHere * 4; score += pts; reasons.push("He chased in this area " + chasedHere + "x this at-bat <span class='pos'>+" + pts + "</span>"); }
+      if (hitHere > 0) { const pts = hitHere * 5; score -= pts; reasons.push("He put the ball in play in this area " + hitHere + "x this at-bat <span class='neg'>-" + pts + "</span>"); }
+    }
+
+    // if he's fouled off 2+ total, he's seeing the ball well
+    const totalFouls = hist.filter(h => h.result === "foul").length;
+    if (totalFouls >= 2) {
+      score -= 3;
+      reasons.push("He's fouled off " + totalFouls + " pitches - he's seeing it well, change something <span class='neg'>-3</span>");
+    }
+  }
+
   x = clamp(x, 0.1, 4.9);
   y = clamp(y, 0.1, 4.9);
 
@@ -1671,6 +1724,13 @@ function renderContextSummary() {
   parts.push('<div class="cs-row"><span class="cs-lbl">Count:</span> <span class="cs-val accent">' + state.balls + "-" + state.strikes + '</span> (' + countLabel + ')' +
     ' <span class="cs-sep">|</span> <span class="cs-lbl">Matchup:</span> ' + state.pitcherHand + 'HP vs ' + state.batterHand + 'HH' +
     ' <span class="cs-sep">|</span> <span class="cs-lbl">Mound:</span> ' + state.mound + ' ft</div>');
+
+  // pitch history line
+  const hist = state.pitchHistory || [];
+  if (hist.length > 0) {
+    const histText = hist.map(h => h.type + " " + h.result).join(", ");
+    parts.push('<div class="cs-row"><span class="cs-lbl">This at-bat:</span> ' + histText + '</div>');
+  }
 
   contextSummary.innerHTML = parts.join("");
 }
