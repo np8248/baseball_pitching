@@ -697,13 +697,13 @@ const BATTER_NOTES = [
 function blankCustom() {
   const notes = {};
   BATTER_NOTES.forEach(n => { notes[n.id] = false; });
-  return { name: "This Batter", hand: "R", arch: "Custom", hot: { v: "mid", h: "mid" }, notes, memo: "" };
+  return { name: "This Batter", hand: "R", arch: "Custom", hot: { v: "mid", h: "mid" }, notes, memo: "", tendencies: {} };
 }
 function activeBatter() {
   if (state.batterIdx === CUSTOM_IDX) return state.custom;
   const b = BATTERS[state.batterIdx] || null;
-  if (b && state.presetNotes[state.batterIdx]) {
-    return Object.assign({}, b, { notes: Object.assign({}, b.notes, state.presetNotes[state.batterIdx]) });
+  if (b && state.presetTendencies[state.batterIdx]) {
+    return Object.assign({}, b, { tendencies: state.presetTendencies[state.batterIdx] });
   }
   return b;
 }
@@ -743,7 +743,7 @@ const state = {
   savedBatters: [],          // user-saved batter profiles, persist across sessions
   pitchHistory: [],          // [{type, velo, loc, result, timing}] for current at-bat
   lastResult: null,          // result of the most recent pitch: strike/ball/foul/whiff/out/hit
-  presetNotes: {},           // auto-generated notes for preset batters: {batterIdx: {noteId: true}}
+  presetTendencies: {},      // auto-learned tendencies for preset batters: {batterIdx: {noteId: evidenceCount}}
   recommendations: []
 };
 
@@ -758,7 +758,7 @@ function save() {
       pitcherName: state.pitcherName, batterIdx: state.batterIdx,
       mound: state.mound, ext: state.ext, relH: state.relH,
       savedBatters: state.savedBatters,
-      presetNotes: state.presetNotes
+      presetTendencies: state.presetTendencies
     }));
   } catch (e) { /* private browsing */ }
 }
@@ -776,7 +776,7 @@ function load() {
     if (typeof d.ext === "number" && d.ext >= 2 && d.ext <= 9) state.ext = d.ext;
     if (typeof d.relH === "number" && d.relH >= 2 && d.relH <= 9) state.relH = d.relH;
     if (Array.isArray(d.savedBatters)) state.savedBatters = d.savedBatters;
-    if (d.presetNotes && typeof d.presetNotes === "object") state.presetNotes = d.presetNotes;
+    if (d.presetTendencies && typeof d.presetTendencies === "object") state.presetTendencies = d.presetTendencies;
   } catch (e) { /* corrupt */ }
 }
 
@@ -953,7 +953,8 @@ saveBatterBtn.addEventListener("click", () => {
     arch: "Custom",
     hot: Object.assign({}, state.custom.hot),
     notes: Object.assign({}, state.custom.notes),
-    memo: state.custom.memo || ""
+    memo: state.custom.memo || "",
+    tendencies: Object.assign({}, state.custom.tendencies || {})
   };
   if (existing >= 0) state.savedBatters[existing] = profile;
   else state.savedBatters.push(profile);
@@ -969,7 +970,8 @@ function loadSavedBatter(idx) {
     name: s.name, hand: s.hand, arch: "Custom",
     hot: Object.assign({}, s.hot),
     notes: Object.assign({}, BATTER_NOTES.reduce((o, n) => { o[n.id] = !!s.notes[n.id]; return o; }, {})),
-    memo: s.memo || ""
+    memo: s.memo || "",
+    tendencies: Object.assign({}, s.tendencies || {})
   };
   state.batterHand = s.hand;
   state.batterIdx = CUSTOM_IDX;
@@ -1234,59 +1236,69 @@ function renderCount() {
 
 /* ---------------- result buttons (auto-update the count) ---------------- */
 
-/* Analyze pitch history and auto-generate scouting notes that get saved
-   to the batter's profile. Conservative: needs 2+ instances of a pattern. */
-function autoNotesFromHistory() {
+/* Analyze pitch history and return evidence counts for each tendency.
+   Each event adds 1 evidence point. Tendencies accumulate across at-bats
+   and apply soft, proportional nudges - not full scouting note bonuses. */
+function autoTendenciesFromHistory() {
   const hist = state.pitchHistory || [];
-  if (hist.length < 2) return {};
+  if (hist.length === 0) return {};
   const bh = state.batterHand;
-  const auto = {};
+  const t = {};
+  const add = (id, n) => { t[id] = (t[id] || 0) + (n || 1); };
   const swings = hist.filter(h => h.result === "whiff" || h.result === "foul");
   const whiffs = hist.filter(h => h.result === "whiff");
   const hits = hist.filter(h => h.result === "hit" || h.result === "out");
   const balls = hist.filter(h => h.result === "ball");
   const swLoc = swings.filter(h => h.loc);
-  // chaseHigh / chaseLow
-  if (swLoc.filter(h => h.loc.y < 2).length >= 2) auto.chaseHigh = true;
-  if (swLoc.filter(h => h.loc.y > 3).length >= 2) auto.chaseLow = true;
-  // chaseAway / chaseIn (hand-dependent)
+  // chaseHigh / chaseLow (whiffs count more than fouls)
+  swLoc.filter(h => h.loc.y < 2).forEach(h => add("chaseHigh", h.result === "whiff" ? 1.5 : 1));
+  swLoc.filter(h => h.loc.y > 3).forEach(h => add("chaseLow", h.result === "whiff" ? 1.5 : 1));
+  // chaseAway / chaseIn
   const away = bh === "R" ? (x => x <= 1.5) : (x => x >= 3.5);
   const inside = bh === "R" ? (x => x >= 3.5) : (x => x <= 1.5);
-  if (swLoc.filter(h => away(h.loc.x)).length >= 2) auto.chaseAway = true;
-  if (swLoc.filter(h => inside(h.loc.x)).length >= 2) auto.chaseIn = true;
-  // lateVelo: 2+ whiffs on fastballs or 2+ late timing + a fb whiff
-  const fbWhiffs = whiffs.filter(h => REF[h.type] && REF[h.type].fam === "fastball");
-  const lateCnt = hist.filter(h => h.timing === "late").length;
-  if (fbWhiffs.length >= 2 || (lateCnt >= 2 && fbWhiffs.length >= 1)) auto.lateVelo = true;
-  // outFront: 2+ early timing
-  if (hist.filter(h => h.timing === "early").length >= 2) auto.outFront = true;
-  // weakBreaking: 2+ whiffs on breaking
-  if (whiffs.filter(h => REF[h.type] && REF[h.type].fam === "breaking").length >= 2) auto.weakBreaking = true;
-  // sitsFastball: 2+ hits on non-fastballs
-  if (hits.filter(h => REF[h.type] && REF[h.type].fam !== "fastball").length >= 2) auto.sitsFastball = true;
-  // sitsSoft: 2+ hits on fastballs
-  if (hits.filter(h => REF[h.type] && REF[h.type].fam === "fastball").length >= 2) auto.sitsSoft = true;
-  // patient: 2+ balls taken and first pitch was a take
-  if (balls.length >= 2 && hist[0] && hist[0].result === "ball") auto.patient = true;
+  swLoc.filter(h => away(h.loc.x)).forEach(h => add("chaseAway", h.result === "whiff" ? 1.5 : 1));
+  swLoc.filter(h => inside(h.loc.x)).forEach(h => add("chaseIn", h.result === "whiff" ? 1.5 : 1));
+  // lateVelo: whiffs on fastballs or late timing
+  whiffs.filter(h => REF[h.type] && REF[h.type].fam === "fastball").forEach(() => add("lateVelo", 1.5));
+  hist.filter(h => h.timing === "late").forEach(() => add("lateVelo", 0.5));
+  // outFront: early timing
+  hist.filter(h => h.timing === "early").forEach(() => add("outFront", 1));
+  // weakBreaking: whiffs on breaking
+  whiffs.filter(h => REF[h.type] && REF[h.type].fam === "breaking").forEach(() => add("weakBreaking", 1.5));
+  // sitsFastball: hits on non-fastballs
+  hits.filter(h => REF[h.type] && REF[h.type].fam !== "fastball").forEach(() => add("sitsFastball", 1.5));
+  // sitsSoft: hits on fastballs
+  hits.filter(h => REF[h.type] && REF[h.type].fam === "fastball").forEach(() => add("sitsSoft", 1.5));
+  // patient: balls taken
+  balls.forEach(() => add("patient", 0.7));
   // firstSwing: swung at the first pitch
-  if (hist[0] && hist[0].result !== "ball" && hist[0].result !== "strike") auto.firstSwing = true;
-  return auto;
+  if (hist[0] && hist[0].result !== "ball" && hist[0].result !== "strike") add("firstSwing", 1);
+  // round all values
+  Object.keys(t).forEach(k => { t[k] = Math.round(t[k] * 10) / 10; });
+  return t;
 }
 
-/* Save auto-generated notes to the active batter's profile. */
-function applyAutoNotes() {
-  const auto = autoNotesFromHistory();
-  if (Object.keys(auto).length === 0) return;
+/* Accumulate tendency evidence on the batter's profile (persists across at-bats). */
+function applyTendencies() {
+  const t = autoTendenciesFromHistory();
+  if (Object.keys(t).length === 0) return;
   if (state.batterIdx === CUSTOM_IDX) {
     if (state.custom) {
-      Object.assign(state.custom.notes, auto);
-      // also update matching saved batter if one exists
+      if (!state.custom.tendencies) state.custom.tendencies = {};
+      const td = state.custom.tendencies;
+      Object.keys(t).forEach(k => { td[k] = Math.min(5, (td[k] || 0) + t[k]); });
+      // also sync matching saved batter
       const idx = state.savedBatters.findIndex(b => b.name === state.custom.name);
-      if (idx >= 0) Object.assign(state.savedBatters[idx].notes, auto);
+      if (idx >= 0) {
+        if (!state.savedBatters[idx].tendencies) state.savedBatters[idx].tendencies = {};
+        const sd = state.savedBatters[idx].tendencies;
+        Object.keys(t).forEach(k => { sd[k] = Math.min(5, (sd[k] || 0) + t[k]); });
+      }
     }
   } else {
-    if (!state.presetNotes[state.batterIdx]) state.presetNotes[state.batterIdx] = {};
-    Object.assign(state.presetNotes[state.batterIdx], auto);
+    if (!state.presetTendencies[state.batterIdx]) state.presetTendencies[state.batterIdx] = {};
+    const td = state.presetTendencies[state.batterIdx];
+    Object.keys(t).forEach(k => { td[k] = Math.min(5, (td[k] || 0) + t[k]); });
   }
   save();
 }
@@ -1319,8 +1331,8 @@ resultGrid.addEventListener("click", e => {
   } else if (r === "foul") {
     if (state.strikes < 2) state.strikes++;
   } else if (r === "out" || r === "hit") {
-    // at-bat over - auto-save scouting notes, then reset for the next batter
-    applyAutoNotes();
+    // at-bat over - accumulate tendency evidence, then reset for the next batter
+    applyTendencies();
     state.balls = 0; state.strikes = 0;
     state.lastLoc = null; state.lastPitchType = null; state.timing = "unknown";
     state.recommendations = []; state.custom = null;
@@ -1360,7 +1372,7 @@ document.getElementById("fullReset").addEventListener("click", () => {
   state.balls = 0; state.strikes = 0; state.lastLoc = null; state.lastPitchType = null;
   state.timing = "unknown"; state.recommendations = [];
   state.pitchHistory = []; state.lastResult = null;
-  state.presetNotes = {};
+  state.presetTendencies = {};
   try { localStorage.removeItem(STORE_KEY); } catch (e) {}
   buildTable();
   renderAll();
@@ -1627,12 +1639,12 @@ function scorePitch(pitch) {
     }
   }
 
-  // --- 6b. scouting notes on the custom profile ---
+  // --- 6b. scouting notes on the profile ---
+  const away = bh === "R" ? x < 2 : x > 3;
+  const inside = bh === "R" ? x > 3 : x < 2;
+  const isFirst = (state.balls === 0 && state.strikes === 0);
   if (batter && batter.notes) {
     const n = batter.notes;
-    const away = bh === "R" ? x < 2 : x > 3;
-    const inside = bh === "R" ? x > 3 : x < 2;
-    const isFirst = (state.balls === 0 && state.strikes === 0);
 
     if (intent === "chase") {
       if (n.chaseHigh && y < 2) { score += 6; reasons.push("Scouting: chases high - chase pitch up <span class='pos'>+6</span>"); }
@@ -1655,6 +1667,34 @@ function scorePitch(pitch) {
     if (n.pullHappy) { const pts = away ? 5 : inside ? -5 : 0; if (pts) { score += pts; reasons.push("Scouting: pull happy - " + (away ? "go away from his power" : "don't pitch him inside") + " <span class='" + (pts > 0 ? "pos" : "neg") + "'>" + (pts > 0 ? "+" : "") + pts + "</span>"); } }
     if (isFirst && n.patient) { const pts = intent === "strike" ? 6 : -5; score += pts; reasons.push("Scouting: patient on 0-0 - " + (intent === "strike" ? "throw a first-pitch strike" : "don't waste it") + " <span class='" + (pts > 0 ? "pos" : "neg") + "'>" + (pts > 0 ? "+" : "") + pts + "</span>"); }
     if (isFirst && n.firstSwing) { const pts = intent === "chase" ? 6 : -3; score += pts; reasons.push("Scouting: hacks at pitch 1 - " + (intent === "chase" ? "give him something to chase" : "don't give him a freebie") + " <span class='" + (pts > 0 ? "pos" : "neg") + "'>" + (pts > 0 ? "+" : "") + pts + "</span>"); }
+  }
+
+  // --- 6c. learned tendencies (auto-generated, softer than scouting notes) ---
+  const tend = batter && batter.tendencies ? batter.tendencies : null;
+  if (tend) {
+    // scale: 0 evidence = 0, capped at ~half the manual note value
+    // e.g. chaseHigh manual = +6; tendency at max evidence (5) = +3
+    const ts = id => Math.min(3, Math.round((tend[id] || 0) * 0.6));
+    if (intent === "chase") {
+      if (ts("chaseHigh") > 0 && y < 2) { const p = ts("chaseHigh"); score += p; reasons.push("Tendency: chased high " + tend.chaseHigh + "x - slight edge up <span class='pos'>+" + p + "</span>"); }
+      if (ts("chaseLow") > 0 && y > 3) { const p = ts("chaseLow"); score += p; reasons.push("Tendency: chased low " + tend.chaseLow + "x - slight edge down <span class='pos'>+" + p + "</span>"); }
+      if (ts("chaseAway") > 0 && away) { const p = ts("chaseAway"); score += p; reasons.push("Tendency: chased away " + tend.chaseAway + "x - slight edge away <span class='pos'>+" + p + "</span>"); }
+      if (ts("chaseIn") > 0 && inside) { const p = ts("chaseIn"); score += p; reasons.push("Tendency: chased in " + tend.chaseIn + "x - slight edge in <span class='pos'>+" + p + "</span>"); }
+    }
+    if (ts("lateVelo") > 0) {
+      if (fam === "fastball") { const p = Math.min(4, ts("lateVelo") + 1); score += p; reasons.push("Tendency: " + tend.lateVelo.toFixed(1) + " evidence late on velo - lean fastball <span class='pos'>+" + p + "</span>"); }
+      else if (fam === "offspeed") { const p = Math.min(2, Math.round(ts("lateVelo") * 0.5)); score -= p; reasons.push("Tendency: late on velo - offspeed slightly less useful <span class='neg'>-" + p + "</span>"); }
+    }
+    if (ts("outFront") > 0) {
+      if (fam === "offspeed") { const p = Math.min(3, ts("outFront") + 1); score += p; reasons.push("Tendency: " + tend.outFront.toFixed(1) + " evidence out front - offspeed nudge <span class='pos'>+" + p + "</span>"); }
+      else if (fam === "breaking") { const p = Math.min(2, ts("outFront")); score += p; reasons.push("Tendency: out front - breaking ball nudge <span class='pos'>+" + p + "</span>"); }
+      else { const p = Math.min(2, Math.round(ts("outFront") * 0.5)); score -= p; reasons.push("Tendency: out front - fastball slightly riskier <span class='neg'>-" + p + "</span>"); }
+    }
+    if (ts("weakBreaking") > 0 && fam === "breaking") { const p = Math.min(3, ts("weakBreaking") + 1); score += p; reasons.push("Tendency: " + tend.weakBreaking.toFixed(1) + " evidence weak vs breaking <span class='pos'>+" + p + "</span>"); }
+    if (ts("sitsFastball") > 0) { const p = Math.min(3, ts("sitsFastball")); const pts = fam === "fastball" ? -p : p; score += pts; reasons.push("Tendency: " + tend.sitsFastball.toFixed(1) + " evidence sitting fastball - " + (fam === "fastball" ? "he may be on it" : "surprise angle") + " <span class='" + (pts > 0 ? "pos" : "neg") + "'>" + (pts > 0 ? "+" : "") + pts + "</span>"); }
+    if (ts("sitsSoft") > 0) { const p = Math.min(3, ts("sitsSoft")); const pts = fam === "fastball" ? p : -p; score += pts; reasons.push("Tendency: " + tend.sitsSoft.toFixed(1) + " evidence sitting soft - " + (fam === "fastball" ? "challenge him" : "he may be on it") + " <span class='" + (pts > 0 ? "pos" : "neg") + "'>" + (pts > 0 ? "+" : "") + pts + "</span>"); }
+    if (isFirst && ts("patient") > 0) { const p = Math.min(2, ts("patient")); const pts = intent === "strike" ? p : -Math.min(1, Math.round(p * 0.5)); score += pts; reasons.push("Tendency: " + tend.patient.toFixed(1) + " evidence patient - " + (intent === "strike" ? "lean strike" : "careful") + " <span class='" + (pts > 0 ? "pos" : "neg") + "'>" + (pts > 0 ? "+" : "") + pts + "</span>"); }
+    if (isFirst && ts("firstSwing") > 0) { const p = Math.min(2, ts("firstSwing")); const pts = intent === "chase" ? p : -1; score += pts; reasons.push("Tendency: " + tend.firstSwing.toFixed(1) + " evidence hacks early - " + (intent === "chase" ? "give him a chase pitch" : "don't groove it") + " <span class='" + (pts > 0 ? "pos" : "neg") + "'>" + (pts > 0 ? "+" : "") + pts + "</span>"); }
   }
 
   // --- 7. approach angle and perceived velo fit for the chosen height ---
@@ -1756,6 +1796,12 @@ function renderContextSummary() {
     if (b.memo) batterLine += ' <span class="cs-sep">|</span> <span class="cs-val">"' + b.memo.slice(0, 50) + (b.memo.length > 50 ? "..." : "") + '"</span>';
     batterLine += "</div>";
     parts.push(batterLine);
+    // tendencies line (auto-learned, separate from manual notes)
+    if (b.tendencies) {
+      const tendLabels = BATTER_NOTES.filter(n => b.tendencies[n.id] && b.tendencies[n.id] > 0)
+        .map(n => n.label.toLowerCase() + " (" + b.tendencies[n.id].toFixed(1) + ")");
+      if (tendLabels.length) parts.push('<div class="cs-row"><span class="cs-lbl">Learned:</span> ' + tendLabels.join(", ") + '</div>');
+    }
   }
 
   // last pitch line
