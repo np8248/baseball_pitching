@@ -226,6 +226,7 @@
   .badge { font-size: 10px; letter-spacing: 1.2px; padding: 4px 9px; border-radius: 999px; text-transform: uppercase; font-weight: 800; }
   .badge.demo { background: #fff4e0; color: var(--chase); border: 1px solid #f4d9a8; }
   .rec-list { display: flex; flex-direction: column; gap: 8px; }
+  .rec-hint { font-size: 11px; color: var(--dim); text-align: center; padding: 4px 0 0; font-weight: 500; }
   .context-summary { font-size: 12px; font-weight: 600; color: var(--dim); line-height: 1.6; }
   .context-summary .cs-row { display: flex; gap: 6px; flex-wrap: wrap; }
   .context-summary .cs-row + .cs-row { margin-top: 6px; }
@@ -261,6 +262,9 @@
   .rec-detail li .pos { color: var(--good); font-weight: 800; }
   .rec-detail li .neg { color: var(--danger); font-weight: 800; }
   .rec-detail .what { margin-top: 8px; font-size: 12px; font-weight: 700; color: var(--dim); line-height: 1.5; }
+  .rec-detail .throw-btn { display: block; margin: 8px 0 10px; padding: 6px 16px; border: 1px solid var(--accent); background: var(--accent-soft); color: var(--accent); border-radius: 8px; font-size: 12px; font-weight: 700; cursor: pointer; font-family: inherit; transition: transform .1s; }
+  .rec-detail .throw-btn:hover { transform: scale(1.03); }
+  .rec-detail .throw-btn:active { transform: scale(0.97); }
   .rec-empty { color: var(--dim); font-size: 13px; padding: 20px; text-align: center; border: 1px dashed var(--line); border-radius: 12px; background: var(--panel-2); }
   .badge.live { background: var(--accent-soft); color: var(--accent); border: 1px solid #c7d4f7; }
 
@@ -516,6 +520,7 @@
       <div class="rec-list" id="recList">
         <div class="rec-empty">Set up your pitcher, pick a batter, then press GO.</div>
       </div>
+      <div class="rec-hint">tap the number to auto-set the pitch, then pick the outcome</div>
     </section>
   </div>
 
@@ -1934,8 +1939,21 @@ function renderRecs() {
     detail.className = "rec-detail";
     detail.style.display = "none";
     const reasonItems = (r.reasons || []).map(why => "<li>" + why + "</li>").join("");
-    detail.innerHTML = "<ul>" + reasonItems + "</ul>" +
+    detail.innerHTML = '<button class="throw-btn">Throw this pitch</button>' +
+      "<ul>" + reasonItems + "</ul>" +
       '<div class="what"><b>What it does:</b> ' + (r.whatItDoes || "") + "</div>";
+    // throw button inside the reasoning panel - same auto-fill as the rank number
+    detail.querySelector(".throw-btn").addEventListener("click", e => {
+      e.stopPropagation();
+      state.lastPitchType = r.type;
+      const avgVelo = state.averages[r.type] && state.averages[r.type].velo;
+      if (avgVelo != null && !Number.isNaN(avgVelo)) setVelo(avgVelo, { fromAvg: true });
+      state.lastLoc = { x: r.x, y: r.y };
+      renderPitchTypes();
+      renderZone();
+      renderContextSummary();
+      renderMaps();
+    });
     recList.appendChild(detail);
   });
   
