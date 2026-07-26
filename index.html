@@ -40,7 +40,7 @@
   .logo { font-size: 28px; font-weight: 800; letter-spacing: -0.5px; color: var(--ink); }
   .logo b { color: var(--accent); }
   .subtitle { color: var(--dim); font-size: 11px; letter-spacing: 1.8px; text-transform: uppercase; font-weight: 700; }
-  .bar-actions { margin-left: auto; display: flex; gap: 10px; }
+  .bar-actions { margin-left: auto; display: flex; gap: 10px; flex-wrap: wrap; row-gap: 8px; }
 
   button {
     font: inherit; color: var(--ink); background: var(--panel-2);
@@ -242,7 +242,9 @@
   }
   .rec:hover { border-color: #b8c5d6; }
   .rec.open { border-color: var(--accent); box-shadow: 0 2px 12px rgba(29,78,216,.1); }
-  .rec .rank { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--dim); background: var(--panel); }
+  .rec .rank { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--dim); background: var(--panel); cursor: pointer; transition: transform .1s, background .15s; flex-shrink: 0; font-family: inherit; padding: 0; }
+  .rec .rank:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); transform: scale(1.15); }
+  .rec .rank:active { transform: scale(0.95); }
   .rec.top .rank { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
   .rec .type { font-size: 17px; font-weight: 800; }
   .rec .loc { color: var(--ink); font-size: 15px; }
@@ -319,7 +321,7 @@
   .field-note { margin-top: 8px; font-size: 12px; font-weight: 700; color: var(--dim); line-height: 1.5; }
   .field-note b { color: var(--ink); }
   #closeSettings { width: 100%; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-size: 15px; padding: 14px; box-shadow: 0 4px 14px rgba(29,78,216,.22); }
-  #closeTutorial { width: 100%; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-size: 15px; padding: 14px; box-shadow: 0 4px 14px rgba(29,78,216,.22); margin-top: 4px; }
+  #closeTutorial, #confirmSaveGame { width: 100%; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-size: 15px; padding: 14px; box-shadow: 0 4px 14px rgba(29,78,216,.22); margin-top: 4px; }
 
   /* ---- tutorial ---- */
   .tut-step { display: flex; gap: 14px; margin-bottom: 16px; }
@@ -346,10 +348,12 @@
     <div class="logo">Pitch<b>Predictor</b></div>
     <div class="subtitle">In-Game Pitch Caller</div>
     <div class="bar-actions">
+      <button class="ghost" id="goHome">Home</button>
       <button class="ghost" id="openTutorial">How to Use</button>
       <button class="gear-btn" id="openSettings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Pitcher Settings</button>
       <button class="ghost" id="loadSample">Load Sample Pitcher</button>
       <button class="ghost" id="loadSample2">Load Noah Copley</button>
+      <button class="ghost" id="saveGame">Save Game</button>
       <button class="ghost" id="newAtBat">New At-Bat</button>
       <button class="warn" id="fullReset">Full Reset</button>
     </div>
@@ -575,6 +579,15 @@
       </table>
     </div>
 
+    <div class="field">
+      <label>Save this pitcher to your library</label>
+      <div class="save-row">
+        <input class="text" type="text" id="savePitcherName" placeholder="Pitcher name" autocomplete="off">
+        <button class="save-btn" id="savePitcherBtn">Save to Library</button>
+      </div>
+      <div class="saved-batters" id="savedPitchersList"></div>
+    </div>
+
     <button id="closeSettings">Close Settings</button>
   </div>
 </div>
@@ -659,6 +672,21 @@
   </div>
 </div>
 
+<div class="modal-overlay" id="saveGameModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-label="Save Game">
+    <div class="modal-head">
+      <div class="modal-title">Save Game</div>
+      <button class="ghost modal-x" id="saveGameX">Close</button>
+    </div>
+    <div class="field">
+      <label for="saveGameLabel">Label</label>
+      <input class="text" type="text" id="saveGameLabel" placeholder="e.g. vs Eastside, top 3rd" autocomplete="off">
+    </div>
+    <button id="confirmSaveGame">Save Game</button>
+  </div>
+</div>
+
+<script src="store.js"></script>
 <script>
 "use strict";
 
@@ -1185,6 +1213,71 @@ function updatePitcherCard() {
   arsenalChip.classList.toggle("set", n > 0);
 }
 
+/* ---------------- save pitcher to library (Store.pitchers) ---------------- */
+const savePitcherNameInput = document.getElementById("savePitcherName");
+const savePitcherBtn = document.getElementById("savePitcherBtn");
+const savedPitchersListEl = document.getElementById("savedPitchersList");
+
+savePitcherBtn.addEventListener("click", () => {
+  const name = savePitcherNameInput.value.trim() || state.pitcherName.trim();
+  if (!name) { savePitcherNameInput.focus(); return; }
+  const existing = Store.pitchers.list().find(p => p.name.toLowerCase() === name.toLowerCase());
+  Store.pitchers.save({
+    id: existing ? existing.id : Store.uid(),
+    name,
+    hand: state.pitcherHand,
+    mound: state.mound,
+    ext: state.ext,
+    relH: state.relH,
+    averages: JSON.parse(JSON.stringify(state.averages)),
+    savedAt: Date.now()
+  });
+  savePitcherNameInput.value = "";
+  renderSavedPitchers();
+});
+
+function loadSavedPitcher(id) {
+  const p = Store.pitchers.get(id);
+  if (!p) return;
+  state.pitcherName = p.name;
+  state.pitcherHand = p.hand;
+  state.mound = p.mound;
+  state.ext = p.ext;
+  state.relH = p.relH;
+  PITCH_TYPES.forEach(t => {
+    state.averages[t] = p.averages && p.averages[t] ? Object.assign({}, p.averages[t]) : { velo: null, vert: null, horz: null };
+  });
+  buildTable();
+  pitcherNameInput.value = state.pitcherName;
+  [...pitchHand.children].forEach(x => x.classList.toggle("on", x.dataset.hand === state.pitcherHand));
+  updatePitcherCard();
+  renderPitchTypes();
+  renderPhys();
+  renderSavedPitchers();
+  save();
+}
+
+function renderSavedPitchers() {
+  savedPitchersListEl.innerHTML = "";
+  Store.pitchers.list().forEach(p => {
+    const chip = document.createElement("div");
+    chip.className = "saved-chip";
+    if (state.pitcherName && state.pitcherName === p.name) chip.classList.add("on");
+    chip.innerHTML = '<span class="nm"></span><button class="x" title="Delete">&times;</button>';
+    chip.querySelector(".nm").textContent = p.name;
+    chip.addEventListener("click", e => {
+      if (e.target.classList.contains("x")) return;
+      loadSavedPitcher(p.id);
+    });
+    chip.querySelector(".x").addEventListener("click", e => {
+      e.stopPropagation();
+      Store.pitchers.remove(p.id);
+      renderSavedPitchers();
+    });
+    savedPitchersListEl.appendChild(chip);
+  });
+}
+
 /* ---------------- pitcher settings card + modal ---------------- */
 function openSettings() { settingsModal.hidden = false; }
 function closeSettings() { settingsModal.hidden = true; }
@@ -1204,6 +1297,45 @@ document.getElementById("tutorialX").addEventListener("click", closeTutorial);
 document.getElementById("closeTutorial").addEventListener("click", closeTutorial);
 tutorialModal.addEventListener("click", e => { if (e.target === tutorialModal) closeTutorial(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && !tutorialModal.hidden) closeTutorial(); });
+
+/* ---------------- home link ---------------- */
+document.getElementById("goHome").addEventListener("click", () => { location.href = "home.html"; });
+
+/* ---------------- save game modal (Store.games) ---------------- */
+const saveGameModal = document.getElementById("saveGameModal");
+const saveGameLabelInput = document.getElementById("saveGameLabel");
+function openSaveGame() {
+  saveGameLabelInput.value = (state.pitcherName.trim() || "Unnamed Pitcher") + " - " + state.balls + "-" + state.strikes;
+  saveGameModal.hidden = false;
+  saveGameLabelInput.focus();
+  saveGameLabelInput.select();
+}
+function closeSaveGame() { saveGameModal.hidden = true; }
+document.getElementById("saveGame").addEventListener("click", openSaveGame);
+document.getElementById("saveGameX").addEventListener("click", closeSaveGame);
+saveGameModal.addEventListener("click", e => { if (e.target === saveGameModal) closeSaveGame(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !saveGameModal.hidden) closeSaveGame(); });
+document.getElementById("confirmSaveGame").addEventListener("click", () => {
+  const label = saveGameLabelInput.value.trim() || "Untitled Game";
+  const b = activeBatter();
+  const snapshot = {
+    pitcherName: state.pitcherName,
+    pitcherHand: state.pitcherHand,
+    averages: JSON.parse(JSON.stringify(state.averages)),
+    mound: state.mound, ext: state.ext, relH: state.relH,
+    batterIdx: state.batterIdx, batterHand: state.batterHand,
+    batterName: b ? (b.name || "Custom batter") : null,
+    custom: state.custom ? JSON.parse(JSON.stringify(state.custom)) : null,
+    balls: state.balls, strikes: state.strikes, timing: state.timing,
+    lastPitchType: state.lastPitchType, velo: state.velo,
+    lastLoc: state.lastLoc ? Object.assign({}, state.lastLoc) : null,
+    pitchHistory: JSON.parse(JSON.stringify(state.pitchHistory || [])),
+    lastResult: state.lastResult,
+    presetTendencies: JSON.parse(JSON.stringify(state.presetTendencies || {}))
+  };
+  Store.games.save({ id: Store.uid(), label, savedAt: Date.now(), snapshot });
+  closeSaveGame();
+});
 
 /* ---------------- timing ---------------- */
 const timingSeg = document.getElementById("timing");
@@ -1323,6 +1455,27 @@ resultGrid.addEventListener("click", e => {
       timing: state.timing
     });
     state.lastResult = r;
+
+    // log to the cross-game Records store
+    const bat = activeBatter();
+    let intent = null, locationName = null;
+    if (state.lastLoc) {
+      const col = clamp(Math.floor(state.lastLoc.x), 0, 4);
+      const row = clamp(Math.floor(state.lastLoc.y), 0, 4);
+      intent = cellIntent(col, row);
+      locationName = locName(col, row, state.batterHand);
+    }
+    Store.records.save({
+      id: Store.uid(),
+      ts: Date.now(),
+      pitcherName: state.pitcherName.trim() || "Unnamed Pitcher",
+      batterName: bat ? (bat.name || "Custom batter") : "Unknown",
+      pitchType: state.lastPitchType,
+      velo: state.velo,
+      intent,
+      locationName,
+      result: r
+    });
   }
 
   if (r === "strike" || r === "whiff") {
@@ -1897,12 +2050,24 @@ function renderRecs() {
     const row = document.createElement("div");
     row.className = "rec" + (i === 0 ? " top" : "");
     row.innerHTML =
-      '<div class="rank">' + (i + 1) + "</div>" +
+      '<button class="rank" title="Throw this pitch">' + (i + 1) + "</button>" +
       '<div class="type"></div><div class="loc"></div>' +
       '<span class="tag ' + (r.intent === "chase" ? "chase" : "strike") + '">' + (r.intent === "chase" ? "Chase" : "Strike") + "</span>" +
       '<div class="why">why?</div>';
     row.querySelector(".type").textContent = r.type;
     row.querySelector(".loc").textContent = r.locationName;
+    // rank number click: auto-fill last pitch inputs so you only need to pick the outcome
+    row.querySelector(".rank").addEventListener("click", e => {
+      e.stopPropagation();
+      state.lastPitchType = r.type;
+      const avgVelo = state.averages[r.type] && state.averages[r.type].velo;
+      if (avgVelo != null && !Number.isNaN(avgVelo)) setVelo(avgVelo, { fromAvg: true });
+      state.lastLoc = { x: r.x, y: r.y };
+      renderPitchTypes();
+      renderZone();
+      renderContextSummary();
+      renderMaps();
+    });
     row.addEventListener("click", () => {
       const detail = row.nextElementSibling;
       const isOpen = row.classList.contains("open");
