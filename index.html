@@ -226,6 +226,17 @@
   .badge { font-size: 10px; letter-spacing: 1.2px; padding: 4px 9px; border-radius: 999px; text-transform: uppercase; font-weight: 800; }
   .badge.demo { background: #fff4e0; color: var(--chase); border: 1px solid #f4d9a8; }
   .rec-list { display: flex; flex-direction: column; gap: 8px; }
+  .context-summary { font-size: 12px; font-weight: 600; color: var(--dim); line-height: 1.6;
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 12px; margin-bottom: 12px; }
+  .context-summary .cs-row { display: flex; gap: 6px; flex-wrap: wrap; }
+  .context-summary .cs-row + .cs-row { margin-top: 6px; }
+  .context-summary .cs-lbl { color: var(--dim); font-weight: 700; }
+  .context-summary .cs-val { color: var(--ink); font-weight: 800; }
+  .context-summary .cs-val.accent { color: var(--accent); }
+  .context-summary .cs-val.danger { color: var(--danger); }
+  .context-summary .cs-val.good { color: var(--good); }
+  .context-summary .cs-sep { color: var(--line); }
   .rec {
     display: grid; grid-template-columns: 34px minmax(96px, 2fr) 3fr auto auto; align-items: center; gap: 12px;
     background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
@@ -480,6 +491,7 @@
         <span class="badge demo" id="engineBadge">Awaiting Spec</span>
         <div class="panel-hint">Strike / Chase</div>
       </div>
+      <div class="context-summary" id="contextSummary"></div>
       <div class="rec-list" id="recList">
         <div class="rec-empty">Set up your pitcher, pick a batter, then press GO.</div>
       </div>
@@ -1141,6 +1153,7 @@ document.getElementById("firstPitchBtn").addEventListener("click", () => {
   state.lastLoc = null; state.lastPitchType = null; state.timing = "unknown";
   state.recommendations = recommend();
   [...resultGrid.children].forEach(x => x.classList.remove("on"));
+  renderContextSummary();
   renderAll();
 });
 
@@ -1494,8 +1507,69 @@ function recommend() {
 }
 
 const recList = document.getElementById("recList");
+const contextSummary = document.getElementById("contextSummary");
+
+function renderContextSummary() {
+  const b = activeBatter();
+  const parts = [];
+
+  // batter line
+  if (b) {
+    const hot = b.hot, cold = { v: oppZone(hot.v), h: oppZone(hot.h) };
+    let batterLine = '<div class="cs-row"><span class="cs-lbl">Batter:</span> ' +
+      '<span class="cs-val">' + (b.name || "Custom") + '</span> (' + b.hand + 'HH)';
+    if (state.batterIdx === CUSTOM_IDX) batterLine += ' <span class="cs-sep">|</span> Custom';
+    batterLine += ' <span class="cs-sep">|</span> <span class="cs-lbl">Hot:</span> <span class="cs-val danger">' + zoneLabel(hot.v, hot.h) + '</span>' +
+      ' <span class="cs-sep">|</span> <span class="cs-lbl">Cold:</span> <span class="cs-val good">' + zoneLabel(cold.v, cold.h) + '</span>';
+    if (b.notes) {
+      const activeNotes = BATTER_NOTES.filter(n => b.notes[n.id]);
+      if (activeNotes.length) batterLine += ' <span class="cs-sep">|</span> <span class="cs-lbl">Notes:</span> ' + activeNotes.map(n => n.label.toLowerCase()).join(", ");
+    }
+    if (b.memo) batterLine += ' <span class="cs-sep">|</span> <span class="cs-val">"' + b.memo.slice(0, 50) + (b.memo.length > 50 ? "..." : "") + '"</span>';
+    batterLine += "</div>";
+    parts.push(batterLine);
+  }
+
+  // last pitch line
+  const isFirst = (state.balls === 0 && state.strikes === 0 && !state.lastPitchType);
+  if (isFirst) {
+    parts.push('<div class="cs-row"><span class="cs-lbl">Last pitch:</span> <span class="cs-val accent">First pitch - no history</span></div>');
+  } else if (state.lastPitchType) {
+    const locText = state.lastLoc ? locName(
+      Math.round(state.lastLoc.x < 2.5 ? 0 : state.lastLoc.x > 2.5 ? 4 : 2),
+      Math.round(state.lastLoc.y < 2.5 ? 0 : state.lastLoc.y > 2.5 ? 4 : 2),
+      state.batterHand
+    ) : "unmarked";
+    let pitchLine = '<div class="cs-row"><span class="cs-lbl">Last pitch:</span> ' +
+      '<span class="cs-val accent">' + state.lastPitchType + '</span> at <span class="cs-val">' + state.velo + '</span> mph';
+    pitchLine += ' <span class="cs-sep">|</span> <span class="cs-lbl">Location:</span> <span class="cs-val">' + locText + '</span>';
+    if (state.lastLoc) pitchLine += ' <span class="cs-sep">|</span> <span class="cs-lbl">Grid:</span> ' + state.lastLoc.x.toFixed(1) + "," + state.lastLoc.y.toFixed(1);
+    pitchLine += ' <span class="cs-sep">|</span> <span class="cs-lbl">Timing:</span> <span class="cs-val">' + state.timing + '</span>';
+    const a = state.averages[state.lastPitchType] || {};
+    const lr = REF[state.lastPitchType];
+    if (lr) {
+      const fl = flight(a.velo != null ? a.velo : lr.velo, a.vert != null ? a.vert : lr.ivb, a.horz != null ? a.horz : lr.horz);
+      pitchLine += ' <span class="cs-sep">|</span> <span class="cs-lbl">Flight:</span> ' + fl.t.toFixed(3) + 's';
+      pitchLine += ' <span class="cs-sep">|</span> <span class="cs-lbl">Perceived:</span> ' + Math.round(fl.perceived) + ' mph';
+    }
+    pitchLine += "</div>";
+    parts.push(pitchLine);
+  }
+
+  // count + matchup line
+  const isPC = (state.strikes > state.balls) && (state.strikes >= 2 || (state.strikes === 1 && state.balls === 0));
+  const isHC = state.balls > state.strikes || state.balls === 3;
+  const countLabel = isPC ? "pitcher's count" : isHC ? "hitter's count" : "even count";
+  parts.push('<div class="cs-row"><span class="cs-lbl">Count:</span> <span class="cs-val accent">' + state.balls + "-" + state.strikes + '</span> (' + countLabel + ')' +
+    ' <span class="cs-sep">|</span> <span class="cs-lbl">Matchup:</span> ' + state.pitcherHand + 'HP vs ' + state.batterHand + 'HH' +
+    ' <span class="cs-sep">|</span> <span class="cs-lbl">Mound:</span> ' + state.mound + ' ft</div>');
+
+  contextSummary.innerHTML = parts.join("");
+}
+
 document.getElementById("go").addEventListener("click", () => {
   state.recommendations = recommend();
+  renderContextSummary();
   renderRecs();
   renderMaps();
 });
@@ -1575,7 +1649,7 @@ function renderMaps() {
 /* ---------------- boot ---------------- */
 function renderAll() {
   renderZone(); renderPitchTypes(); renderBatterHand(); renderBatterGrid(); renderBatterInfo();
-  renderCount(); renderRecs(); renderMaps(); renderPhys();
+  renderCount(); renderContextSummary(); renderRecs(); renderMaps(); renderPhys();
   setVelo(state.velo);
   pitcherNameInput.value = state.pitcherName;
   updatePitcherCard();
