@@ -20,6 +20,7 @@
     --accent-soft: #eaf0ff;
     --chase: #d97706;
     --danger: #dc2626;
+    --good: #16a34a;
     --radius: 16px;
     --shadow: 0 1px 2px rgba(15,23,42,.04), 0 6px 18px rgba(15,23,42,.06);
     --shadow-sm: 0 1px 2px rgba(15,23,42,.06);
@@ -60,6 +61,20 @@
   .panel-head { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
   .panel-title { font-size: 12px; letter-spacing: 1.5px; text-transform: uppercase; color: var(--ink); font-weight: 800; }
   .panel-hint { margin-left: auto; color: var(--dim); font-size: 11px; font-weight: 600; }
+
+  /* ---- numbered steps ---- */
+  .stepno {
+    flex: 0 0 auto; align-self: center; width: 24px; height: 24px; border-radius: 50%;
+    background: var(--panel-2); border: 1.5px solid var(--line); color: var(--dim);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-size: 12px; font-weight: 800; transition: background .15s, color .15s, border-color .15s;
+  }
+  .panel.step.done .stepno { background: var(--good); border-color: var(--good); color: #fff; }
+  .panel.step.done .panel-title { color: var(--good); }
+  .step-note { margin-left: auto; font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; font-weight: 800; color: var(--dim); }
+  .panel.step.done .step-note { color: var(--good); }
+  .sub-head { display: flex; align-items: flex-end; margin: 16px 0 0; padding-top: 14px; border-top: 1px solid var(--line); }
+  .sub-head .panel-title { font-size: 11px; }
 
   /* ---- zone ---- */
   .zone-row { display: flex; gap: 12px; align-items: stretch; }
@@ -255,88 +270,45 @@
   </header>
 
   <div class="grid-main">
-    <!-- LEFT COLUMN -->
+    <!-- LEFT COLUMN: step 1-3, one-time setup then the situation -->
     <div class="col">
-      <section class="panel">
+      <section class="panel pitcher-card step" id="pitcherCard">
         <div class="panel-head">
-          <div class="panel-title">Batter &amp; Last Pitch Location</div>
-          <div class="panel-hint">tap the zone to mark the pitch</div>
+          <div class="stepno">1</div>
+          <div class="panel-title">Your Pitcher</div>
+          <div class="step-note" id="step1Note">tap to set up</div>
         </div>
-        <div class="zone-row">
-          <div class="hand-rail" id="battRight" data-hand="R">Righty</div>
-          <div class="zone-stage">
-            <div class="zone-grid" id="zoneGrid"></div>
-            <div class="plate">
-              <svg width="90" height="26" viewBox="0 0 90 26"><path d="M6 2 H84 L84 10 L45 24 L6 10 Z" fill="none" stroke="#7c8b99" stroke-width="2"/></svg>
-            </div>
-          </div>
-          <div class="hand-rail" id="battLeft" data-hand="L">Lefty</div>
-        </div>
+        <div class="pitcher-name" id="pitcherNameDisp">Unnamed Pitcher</div>
+        <div class="pitcher-sub" id="pitcherHandDisp">Right-handed</div>
+        <div class="pitcher-meta"><span class="chip" id="arsenalChip">0 pitches set</span></div>
       </section>
 
-      <section class="panel">
+      <section class="panel step" id="stepBatter">
         <div class="panel-head">
-          <div class="panel-title">Batter Profile</div>
-          <div class="panel-hint">preset &middot; drives first pitch</div>
+          <div class="stepno">2</div>
+          <div class="panel-title">Who's Batting</div>
+          <div class="step-note" id="step2Note">pick one</div>
         </div>
         <div class="batter-grid" id="batterGrid"></div>
         <div class="batter-info" id="batterInfo">Select a batter</div>
       </section>
 
-      <section class="panel">
-        <div class="velo-head">
-          <div class="panel-title">Velocity &mdash; Pitch Just Thrown</div>
-          <div class="velo-val" id="veloVal">94<span>MPH</span></div>
+      <section class="panel step" id="stepCount">
+        <div class="panel-head">
+          <div class="stepno">3</div>
+          <div class="panel-title">The Count</div>
+          <div class="step-note" id="step3Note">0-0</div>
         </div>
-        <input type="range" id="velo" min="60" max="106" step="1" value="94">
-        <div class="ticks"><span>60</span><span>70</span><span>80</span><span>90</span><span>100</span><span>106</span></div>
-      </section>
-
-      <div class="row2">
-        <section class="panel">
-          <div class="panel-head"><div class="panel-title">Count</div></div>
-          <div class="stepper">
-            <div class="step-grp">
-              <div class="step-lbl">Balls</div>
-              <div class="step-ctl"><button data-c="balls" data-d="-1">&minus;</button><div class="num" id="balls">0</div><button data-c="balls" data-d="1">+</button></div>
-            </div>
-            <div class="step-grp">
-              <div class="step-lbl">Strikes</div>
-              <div class="step-ctl"><button data-c="strikes" data-d="-1">&minus;</button><div class="num" id="strikes">0</div><button data-c="strikes" data-d="1">+</button></div>
-            </div>
+        <div class="stepper">
+          <div class="step-grp">
+            <div class="step-lbl">Balls</div>
+            <div class="step-ctl"><button data-c="balls" data-d="-1">&minus;</button><div class="num" id="balls">0</div><button data-c="balls" data-d="1">+</button></div>
           </div>
-        </section>
-
-        <section class="panel pitcher-card" id="pitcherCard">
-          <div class="panel-head"><div class="panel-title">Pitcher</div><div class="panel-hint">tap to edit</div></div>
-          <div class="pitcher-name" id="pitcherNameDisp">Unnamed Pitcher</div>
-          <div class="pitcher-sub" id="pitcherHandDisp">Right-handed</div>
-          <div class="pitcher-meta"><span class="chip" id="arsenalChip">0 pitches set</span></div>
-        </section>
-      </div>
-    </div>
-
-    <!-- RIGHT COLUMN -->
-    <div class="col">
-      <section class="panel">
-        <div class="panel-head">
-          <div class="panel-title">Timing</div>
-          <div class="panel-hint">how the hitter was on the last pitch</div>
+          <div class="step-grp">
+            <div class="step-lbl">Strikes</div>
+            <div class="step-ctl"><button data-c="strikes" data-d="-1">&minus;</button><div class="num" id="strikes">0</div><button data-c="strikes" data-d="1">+</button></div>
+          </div>
         </div>
-        <div class="seg" id="timing">
-          <button data-t="early">Early</button>
-          <button data-t="late">Late</button>
-          <button data-t="ontime">On Time</button>
-          <button data-t="unknown" class="on">Unknown</button>
-        </div>
-      </section>
-
-      <section class="panel">
-        <div class="panel-head">
-          <div class="panel-title">Pitch Type &mdash; Just Thrown</div>
-          <div class="panel-hint">auto-sets velo from pitcher averages</div>
-        </div>
-        <div class="pt-grid" id="ptGrid"></div>
       </section>
 
       <div class="maps-row" id="mapsRow">
@@ -358,12 +330,64 @@
         </section>
       </div>
     </div>
+
+    <!-- RIGHT COLUMN: step 4-6, what just happened -->
+    <div class="col">
+      <section class="panel step" id="stepLast">
+        <div class="panel-head">
+          <div class="stepno">4</div>
+          <div class="panel-title">Pitch You Just Threw</div>
+          <div class="step-note" id="step4Note">none yet</div>
+        </div>
+        <div class="pt-grid" id="ptGrid"></div>
+        <div class="sub-head">
+          <div class="panel-title">Velocity</div>
+          <div class="velo-val" id="veloVal">94<span>MPH</span></div>
+        </div>
+        <input type="range" id="velo" min="60" max="106" step="1" value="94">
+        <div class="ticks"><span>60</span><span>70</span><span>80</span><span>90</span><span>100</span><span>106</span></div>
+      </section>
+
+      <section class="panel step" id="stepZone">
+        <div class="panel-head">
+          <div class="stepno">5</div>
+          <div class="panel-title">Where It Was Thrown</div>
+          <div class="step-note" id="step5Note">tap the zone</div>
+        </div>
+        <div class="zone-row">
+          <div class="hand-rail" id="battRight" data-hand="R">Righty</div>
+          <div class="zone-stage">
+            <div class="zone-grid" id="zoneGrid"></div>
+            <div class="plate">
+              <svg width="90" height="26" viewBox="0 0 90 26"><path d="M6 2 H84 L84 10 L45 24 L6 10 Z" fill="none" stroke="#7c8b99" stroke-width="2"/></svg>
+            </div>
+          </div>
+          <div class="hand-rail" id="battLeft" data-hand="L">Lefty</div>
+        </div>
+      </section>
+
+      <section class="panel step" id="stepTiming">
+        <div class="panel-head">
+          <div class="stepno">6</div>
+          <div class="panel-title">Hitter's Timing</div>
+          <div class="step-note" id="step6Note">on that pitch</div>
+        </div>
+        <div class="seg" id="timing">
+          <button data-t="early">Early</button>
+          <button data-t="late">Late</button>
+          <button data-t="ontime">On Time</button>
+          <button data-t="unknown" class="on">Unknown</button>
+        </div>
+      </section>
+
+    </div>
   </div>
 
   <div class="go-row">
     <button id="go">GO<small>Get next pitch</small></button>
-    <section class="panel">
+    <section class="panel step" id="stepGo">
       <div class="panel-head">
+        <div class="stepno">7</div>
         <div class="panel-title">Next Pitch Recommendations</div>
         <span class="badge demo" id="engineBadge">Awaiting Spec</span>
         <div class="panel-hint">Strike / Chase</div>
@@ -528,6 +552,7 @@ function renderZone() {
   } else {
     zoneDot.classList.remove("show");
   }
+  renderSteps();
 }
 
 /* ---------------- pitch type buttons ---------------- */
@@ -554,6 +579,7 @@ function renderPitchTypes() {
   [...avgBody.children].forEach(tr => {
     tr.classList.toggle("selected", tr.dataset.pitch === state.lastPitchType);
   });
+  renderSteps();
 }
 
 /* ---------------- batter profile ---------------- */
@@ -586,6 +612,7 @@ function renderBatterInfo() {
     '<b>' + b.name + '</b> (' + b.hand + 'HH) &middot; ' + b.arch + '<br>' +
     'Hot zone (avoid): <span class="hot">' + zoneLabel(hot.v, hot.h) + '</span> &middot; ' +
     'Cold zone (attack): <span class="cold">' + zoneLabel(cold.v, cold.h) + '</span>';
+  renderSteps();
 }
 
 /* ---------------- averages table ---------------- */
@@ -655,7 +682,7 @@ function setVelo(v, opts) {
     veloVal.classList.add("pulse");
   }
 }
-veloInput.addEventListener("input", () => setVelo(+veloInput.value));
+veloInput.addEventListener("input", () => { setVelo(+veloInput.value); renderSteps(); });
 
 /* ---------------- handedness ---------------- */
 const battRight = document.getElementById("battRight");
@@ -698,6 +725,35 @@ function updatePitcherCard() {
   arsenalChip.classList.toggle("set", n > 0);
 }
 
+/* ---------------- step progress ---------------- */
+function setStep(id, done, note) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.classList.toggle("done", !!done);
+  if (note != null) {
+    const n = el.querySelector(".step-note");
+    if (n) n.textContent = note;
+  }
+}
+function renderSteps() {
+  const arsenal = PITCH_TYPES.filter(p => state.averages[p] && state.averages[p].velo != null).length;
+  setStep("pitcherCard", arsenal > 0, arsenal > 0 ? "ready" : "tap to set up");
+
+  const b = BATTERS[state.batterIdx];
+  setStep("stepBatter", !!b, b ? b.name.split(" ")[0] : "pick one");
+
+  setStep("stepCount", true, state.balls + "-" + state.strikes);
+
+  setStep("stepLast", !!state.lastPitchType, state.lastPitchType ? state.lastPitchType + " @ " + state.velo : "first pitch");
+
+  setStep("stepZone", !!state.lastLoc, state.lastLoc ? "marked" : (state.lastPitchType ? "tap the zone" : "not needed yet"));
+
+  setStep("stepTiming", state.timing !== "unknown", state.timing === "unknown" ? "unknown" : state.timing);
+
+  const recs = state.recommendations || [];
+  setStep("stepGo", recs.length > 0, recs.length ? "top: " + recs[0].type : "press GO");
+}
+
 const settingsModal = document.getElementById("settingsModal");
 function openSettings() { settingsModal.hidden = false; }
 function closeSettings() { settingsModal.hidden = true; }
@@ -715,6 +771,7 @@ timingSeg.addEventListener("click", e => {
   if (!b) return;
   state.timing = b.dataset.t;
   [...timingSeg.children].forEach(x => x.classList.toggle("on", x === b));
+  renderSteps();
 });
 
 /* ---------------- count ---------------- */
@@ -729,6 +786,7 @@ document.querySelectorAll("[data-c]").forEach(b => {
 function renderCount() {
   document.getElementById("balls").textContent = state.balls;
   document.getElementById("strikes").textContent = state.strikes;
+  renderSteps();
 }
 
 /* ---------------- reset ---------------- */
@@ -957,8 +1015,9 @@ function renderRecs() {
   if (!recs.length) {
     const anyAvg = PITCH_TYPES.some(p => state.averages[p] && state.averages[p].velo != null);
     recList.innerHTML = '<div class="rec-empty">' +
-      (anyAvg ? "Mark the last pitch and press GO." : "Enter the pitcher's averages (at least Velo) so the engine has an arsenal to score.") +
+      (anyAvg ? "Work through steps 2-6, then press GO." : "Step 1: enter the pitcher's averages (at least Velo) so the engine has an arsenal to score.") +
       "</div>";
+    renderSteps();
     return;
   }
   recList.innerHTML = "";
@@ -973,6 +1032,7 @@ function renderRecs() {
     row.querySelector(".loc").textContent = r.locationName;
     recList.appendChild(row);
   });
+  renderSteps();
 }
 
 /* ---------------- output maps ---------------- */
@@ -1022,6 +1082,7 @@ function renderAll() {
   updatePitcherCard();
   [...pitchHand.children].forEach(x => x.classList.toggle("on", x.dataset.hand === state.pitcherHand));
   [...timingSeg.children].forEach(x => x.classList.toggle("on", x.dataset.t === state.timing));
+  renderSteps();
 }
 const engineBadge = document.getElementById("engineBadge");
 engineBadge.textContent = "Engine Live";
