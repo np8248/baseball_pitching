@@ -319,6 +319,18 @@
   .field-note { margin-top: 8px; font-size: 12px; font-weight: 700; color: var(--dim); line-height: 1.5; }
   .field-note b { color: var(--ink); }
   #closeSettings { width: 100%; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-size: 15px; padding: 14px; box-shadow: 0 4px 14px rgba(29,78,216,.22); }
+  #closeTutorial { width: 100%; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-size: 15px; padding: 14px; box-shadow: 0 4px 14px rgba(29,78,216,.22); margin-top: 4px; }
+
+  /* ---- tutorial ---- */
+  .tut-step { display: flex; gap: 14px; margin-bottom: 16px; }
+  .tut-num { flex: 0 0 28px; width: 28px; height: 28px; border-radius: 50%;
+    background: var(--accent); color: var(--accent-ink); display: flex;
+    align-items: center; justify-content: center; font-size: 13px; font-weight: 800; }
+  .tut-body { font-size: 13px; font-weight: 600; color: var(--ink); line-height: 1.6; }
+  .tut-body b { font-weight: 800; }
+  .tut-note { font-size: 12px; font-weight: 600; color: var(--dim); line-height: 1.6;
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 16px; }
 
   @media (max-width: 900px) {
     .grid-main, .go-row, .row2, .maps-row { grid-template-columns: 1fr; }
@@ -334,6 +346,7 @@
     <div class="logo">Pitch<b>Predictor</b></div>
     <div class="subtitle">In-Game Pitch Caller</div>
     <div class="bar-actions">
+      <button class="ghost" id="openTutorial">How to Use</button>
       <button class="gear-btn" id="openSettings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Pitcher Settings</button>
       <button class="ghost" id="loadSample">Load Sample Pitcher</button>
       <button class="ghost" id="newAtBat">New At-Bat</button>
@@ -562,6 +575,86 @@
     </div>
 
     <button id="closeSettings">Close Settings</button>
+  </div>
+</div>
+
+<div class="modal-overlay" id="tutorialModal" hidden>
+  <div class="modal" role="dialog" aria-modal="true" aria-label="How to Use">
+    <div class="modal-head">
+      <div class="modal-title">How to Use Pitch Predictor</div>
+      <button class="ghost modal-x" id="tutorialX">Close</button>
+    </div>
+
+    <div class="tut-step">
+      <div class="tut-num">1</div>
+      <div class="tut-body">
+        <b>Set up your pitcher.</b> Tap the Pitcher card or the gear button to open Settings.
+        Enter your pitcher's name, handedness, mound distance, and release height/extension.
+        Then fill in the averages table: Velo, Vert (IVB), and Horz for each pitch he throws.
+        Or press <b>Load Sample Pitcher</b> to see how it works.
+      </div>
+    </div>
+
+    <div class="tut-step">
+      <div class="tut-num">2</div>
+      <div class="tut-body">
+        <b>Pick the batter.</b> Tap one of the 9 preset batters, or choose <b>Custom</b>
+        to build a profile from scratch. For a custom batter, set his handedness,
+        tap where he does damage (the hot zone picker), toggle any scouting notes
+        that apply, and write a memo. Press <b>Save</b> to store him for next time,
+        then click his chip to reload him instantly when he's up again.
+      </div>
+    </div>
+
+    <div class="tut-step">
+      <div class="tut-num">3</div>
+      <div class="tut-body">
+        <b>Set the count.</b> Use the + and &minus; buttons for Balls and Strikes.
+        Or just use the <b>What Happened</b> buttons (Strike, Ball, Foul, Whiff, Out, Hit)
+        after each pitch, they update the count for you. Press <b>First Pitch</b>
+        to jump to 0-0 and get an opening call driven by the batter's profile.
+      </div>
+    </div>
+
+    <div class="tut-step">
+      <div class="tut-num">4</div>
+      <div class="tut-body">
+        <b>Mark the pitch you just threw.</b> Tap the pitch type, set the velocity slider,
+        and tap the zone grid to show where it went. Then set the hitter's timing
+        (Early, Late, On Time, or Unknown). The engine uses all of this to pick
+        what to throw next.
+      </div>
+    </div>
+
+    <div class="tut-step">
+      <div class="tut-num">5</div>
+      <div class="tut-body">
+        <b>Press GO.</b> The engine ranks your top 5 pitches by score, with the
+        location and whether it's a Strike or Chase pitch. The <b>Predicted Spot</b>
+        map shows numbered dots where each pitch should go.
+        <b>Tap any recommendation</b> to see why it ranked there, every scoring
+        factor and point value, plus what the pitch is designed to do.
+      </div>
+    </div>
+
+    <div class="tut-step">
+      <div class="tut-num">6</div>
+      <div class="tut-body">
+        <b>Check the Engine Reading.</b> The panel below the Predicted Spot map
+        shows everything the engine is working with: the batter's profile, the
+        last pitch data (including flight time and perceived velocity from the
+        physics engine), and the current matchup.
+      </div>
+    </div>
+
+    <div class="tut-note">
+      The engine is a deterministic calculator, not an AI. It uses real ball-flight
+      physics (flight time, commit-point tunneling, vertical approach angle,
+      perceived velocity) plus your inputs to score every pitch. Same inputs
+      always give the same recommendation.
+    </div>
+
+    <button id="closeTutorial">Got it</button>
   </div>
 </div>
 
@@ -1089,6 +1182,16 @@ document.getElementById("settingsX").addEventListener("click", closeSettings);
 document.getElementById("closeSettings").addEventListener("click", closeSettings);
 settingsModal.addEventListener("click", e => { if (e.target === settingsModal) closeSettings(); });
 document.addEventListener("keydown", e => { if (e.key === "Escape" && !settingsModal.hidden) closeSettings(); });
+
+/* ---------------- tutorial modal ---------------- */
+const tutorialModal = document.getElementById("tutorialModal");
+function openTutorial() { tutorialModal.hidden = false; }
+function closeTutorial() { tutorialModal.hidden = true; }
+document.getElementById("openTutorial").addEventListener("click", openTutorial);
+document.getElementById("tutorialX").addEventListener("click", closeTutorial);
+document.getElementById("closeTutorial").addEventListener("click", closeTutorial);
+tutorialModal.addEventListener("click", e => { if (e.target === tutorialModal) closeTutorial(); });
+document.addEventListener("keydown", e => { if (e.key === "Escape" && !tutorialModal.hidden) closeTutorial(); });
 
 /* ---------------- timing ---------------- */
 const timingSeg = document.getElementById("timing");
