@@ -19,7 +19,8 @@ Movement and velocity values are MLB averages synthesized from Statcast/Baseball
 9. [Worked example scenarios (prediction charts)](#worked-example-scenarios-prediction-charts)
 10. [Player data: Statcast metrics explained](#player-data-statcast-metrics-explained)
 11. [Pitcher evaluation metrics: Stuff+, Location+, Pitching+](#pitcher-evaluation-metrics-stuff-location-pitching)
-12. [Sources](#sources)
+12. [The live app's scoring engine: every factor, with the math](#the-live-apps-scoring-engine-every-factor-with-the-math)
+13. [Sources](#sources)
 
 ---
 
@@ -543,6 +544,128 @@ Three composite models (popularized by FanGraphs / Baseball Prospectus) grade th
 **How to use them:** Stuff+ tells you a pitcher's ceiling (can the pitch miss bats?). Location+ tells you if he can actually deploy it. A pitcher with 120 Stuff+ and 90 Location+ has elite raw stuff but leaks damage because he can't locate. A pitcher with 100 Stuff+ and 115 Location+ is a crafty command artist who overperforms his raw grade. Pitching+ is the blend - the best single number for "how good is this pitch, overall."
 
 For Pitch Predictor's purposes: a pitcher's Stuff+ by pitch type tells you *which of his pitches to trust in high-leverage counts*. If his sweeper grades 120 and his curve grades 95, the put-away pitch in a 1-2 count is the sweeper, full stop.
+
+---
+
+## The live app's scoring engine: every factor, with the math
+
+> This documents `index.html` as it actually runs today - the `scorePitch()` function and the physics helpers it calls (`flight()`, `approachAngle()`, `tunnel()`, `timingError()`). It's a superset of the simpler 5-factor model summarized in [How the scoring model works](#how-the-scoring-model-works) above, which describes the standalone `docs/generate_scenarios.py` script used to generate the worked-example charts. The live app adds a real ball-flight physics layer, batter hot/cold zones, and custom scouting notes on top of that.
+
+Every candidate pitch (only pitches with a Velo entered in Pitcher Settings are scored) starts at a baseline of **50 points**. Seven factors add or subtract from it; the five highest-scoring pitches are shown, sorted descending.
+
+### Step 0: the physics layer (feeds factors 4 and 7)
+
+Before any scoring happens, the engine computes a closed-form ball-flight for every pitch using the Pitcher Settings' Mound Distance, Extension, and Release Height. This isn't cosmetic - it's what factors 4 and 7 actually score against.
+
+**Constants:**
+
+| Constant | Value | Meaning |
+| --- | --- | --- |
+| `FPS_PER_MPH` | 1.46667 | mph &rarr; ft/s conversion (5280&divide;3600) |
+| `G` | 32.174 ft/s&sup2; | gravity |
+| `REACT` | 0.167 s | how long before the ball arrives the hitter must commit to swinging (close to the ~175 ms decision point cited in [Hitter timing](#hitter-timing-early-late-on-time-and-how-to-exploit-it) above) |
+| `DRAG_PER_FT` | 0.00155 | fraction of release speed lost per foot of flight (simple linear drag model) |
+| `GRID_TOP` / `GRID_BOT` | 3.9 ft / 1.1 ft | the vertical span of the 5&times;5 zone grid - it overhangs the ~1.5-3.5 ft rulebook zone by one cell on each side |
+
+**`flight(velo, ivb, horz)`** - everything about a pitch that doesn't depend on where it's aimed:
+
+1. `d = mound - extension` (release-to-plate distance, floor 20 ft)
+2. `vRelease = velo * FPS_PER_MPH`, `vPlate = vRelease * (1 - DRAG_PER_FT * d)`, `vAvg = (vRelease + vPlate) / 2`
+3. `t = d / vAvg` - total flight time
+4. `tCommit = max(0.05, t - REACT)` - how long the ball is in flight *before* the hitter has to decide
+5. `f = (tCommit / t)^2` - the fraction of the pitch's total break that has *already happened* by the commit point. Break accumulates like a constant-acceleration process (distance &prop; time&sup2;), so squaring the time ratio approximates how much of the movement is "visible" before the hitter swings.
+6. `perceivedVelo = velo * (dRef / d)`, where `dRef = mound - 6.0 ft` (a league-typical extension). Less release distance than the reference makes the pitch *look* faster than its radar number - this is the extension effect.
+7. `ivbAtCommit = ivb * f`, `horzAtCommit = horz * f` - how much vertical/horizontal movement has shown by the time the hitter commits (the rest happens after, which is the whole point of tunneling).
+
+**`approachAngle(fl, targetHeightFt)`** - the vertical angle (degrees) the pitch crosses the plate at, for a pitch aimed at a given height:
+
+- `aIvb = 2 * (ivb / 12) / t^2` - the constant vertical acceleration implied by the pitch's IVB (inches converted to feet)
+- Solve `z = releaseHeight + vz0*t + 0.5*(aIvb - G)*t^2` for the needed initial vertical velocity `vz0`
+- `vzPlate = vz0 + (aIvb - G) * t` - vertical velocity at arrival
+- `angle = atan2(vzPlate, d/t)` in degrees. Flat (~-4.5&deg;) is the fastball-up shape from [How movement is measured](#how-movement-is-measured); steep (~-9&deg;) is the curveball-down shape.
+
+**`tunnel(fl, prev)`** - how well a candidate pitch hides behind the last pitch thrown:
+
+- `sepCommit = hypot(ivbAtCommit diff, horzAtCommit diff)` - how different the two pitches look *at the commit point*
+- `sepPlate = hypot(ivb diff, horz diff)` - how different they actually are *at the plate*
+- `ratio = sepPlate / max(sepCommit, 0.75)` - a ratio above 1 means the two pitches looked similar early and diverged late (good tunnel); near 1 means the difference was already visible before the hitter committed (bad tunnel, easy to read)
+
+**`timingError(fl, prev)`** - if the hitter is still timed to the previous pitch, how far off the barrel lands, in inches of ball travel: `abs(fl.t - prev.t) * (fl.d / fl.t) * 12`.
+
+### The 7 scoring factors
+
+**1. Count leverage**
+
+| Count type | Condition | Adjustment |
+| --- | --- | --- |
+| Pitcher's count | `strikes > balls` and (`strikes >= 2` or `1-0 strikes-balls`) | Breaking/offspeed: **+8** |
+| Hitter's count | `balls > strikes` or `balls == 3` | Fastball: **+5**, other families: **+3** |
+
+**2. Timing exploitation** (mirrors the [exploitation table](#the-exploitation-logic-what-to-throw-next) above, translated to points)
+
+| Hitter's timing on the last pitch | Adjustment |
+| --- | --- |
+| Early | Offspeed **+18**; else Curve **+14**; else 4 Seam **+8**; else other breaking **+4** |
+| Late | 4 Seam **+18**; else Cutter **+12**; else offspeed **-8** |
+| On Time | If a last pitch exists and this candidate is a different family: **+14**, else **-10**; then **-4** always applied |
+| Unknown | no adjustment (falls through to count leverage) |
+
+**3. Platoon logic**
+
+| Matchup | Adjustment |
+| --- | --- |
+| Same-handed | Breaking ball **+10**; Changeup **-4** |
+| Opposite-handed | Changeup **+10**; Cutter **+8**; Sinker **+6**; breaking (not Sweeper) **-3** |
+
+**4. Tunneling / timing separation (physics-based)** - only applies when a different pitch was just thrown:
+
+- `+clamp((tunnelRatio - 1) * 4, 0, 10)` - rewards break that mostly happens after the hitter commits
+- `+clamp(sepPlate * 0.22, 0, 7)` - rewards raw movement separation at the plate
+- `+clamp(timingError * 0.10, 0, 8)` - rewards a flight-time mismatch versus the previous pitch
+
+If the *same* pitch is thrown twice in a row instead: Late timing + 4 Seam **+6**; Early timing on a breaking/offspeed repeat **-10**; otherwise a flat **-6** predictability penalty.
+
+**5. Recommended location** (not a score adjustment - it picks *where* the dot goes and whether the pitch is scored as a zone "Strike" or an off-zone "Chase")
+
+| Pitch | Base spot |
+| --- | --- |
+| 4 Seam | Top-middle |
+| Sinker | Down, arm-side edge |
+| Cutter | Middle, glove-side edge |
+| Gyro | Down, back-foot if same-handed, else down-middle |
+| Sweeper | Middle-low, back-foot if same-handed, else back-door |
+| Curve | Down-middle |
+| Split | Down-middle (shallower than Curve) |
+| Change | Down, arm-side edge |
+
+In a hitter's count (3+ balls) every location is pulled back inside the inner 3&times;3 (must throw a strike). In a pitcher's count, breaking/offspeed pitches are pushed to the bottom row and forced to "Chase." Sub-cell placement then nudges chase pitches further off the shadow zone, pulls forced strikes toward the heart, and lifts the 4 Seam slightly higher / drops Curve-Split-Change slightly lower within a neutral count.
+
+**6. Batter profile: hot/cold zones**
+
+Every preset batter (and the custom "This Batter" profile) has a hot zone (vertical &times; horizontal). The engine computes the opposite corner as the cold zone. If the candidate's location lands in the hot zone: **-8** (**-12.8** on the first pitch of the at-bat, a 1.6&times; multiplier), and the dot is pulled 35% of the way toward the cold zone's center. Landing in the cold zone: **+5** (**+8** on the first pitch).
+
+**6b. Scouting notes** (custom batter only - 12 independent toggles, each reads the pitch's family/location and adjusts the score)
+
+| Note | Effect |
+| --- | --- |
+| Chases high / low / away / inside | **+6** if this pitch is a Chase-intent pitch located in that quadrant |
+| Late on velo | Fastballs **+9 to +12**; offspeed **-5** |
+| Out front / early | Offspeed **+9**; breaking **+5**; fastball **-4** |
+| Sitting fastball | Fastball **-7**, everything else **+7** |
+| Sitting soft | Fastball **+7**, everything else **-7** |
+| Weak vs breaking | Breaking balls **+8** |
+| Pull happy | **+5** if the pitch is away, **-5** if inside |
+| Patient on 0-0 (first pitch only) | Strike-intent **+6**, Chase-intent **-5** |
+| Hacks at pitch 1 (first pitch only) | Chase-intent **+6**, Strike-intent **-3** |
+
+**7. Approach angle and perceived-velo fit** - uses the physics layer against the pitch's *actual* target height:
+
+- Working the upper third (`y < 2`): `+clamp((5.5 - |VAA|) * 3, 0, 6)` (flatter is better up there); a VAA steeper than 8.5&deg; is a **-4** mistake.
+- Working down/below (`y > 3`): `+clamp((|VAA| - 7) * 2, 0, 6)` (steeper is better down there); a VAA flatter than 5.5&deg; is a **-3** mistake.
+- Fastballs get `+clamp((perceivedVelo - velo) * 1.2, -3, 4)` - the extension bonus/penalty.
+- Chase-intent pitches get `+clamp((0.44 - flightTime) * 18, -2, 4)` - a shorter flight time gives the hitter less time to read a pitch he's not supposed to swing at.
+
+The final score is rounded to the nearest whole number; ties and near-ties are common by design, since real pitch calling rarely has one obviously-correct answer.
 
 ---
 
