@@ -242,7 +242,9 @@
   }
   .rec:hover { border-color: #b8c5d6; }
   .rec.open { border-color: var(--accent); box-shadow: 0 2px 12px rgba(29,78,216,.1); }
-  .rec .rank { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--dim); background: var(--panel); }
+  .rec .rank { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--dim); background: var(--panel); cursor: pointer; transition: transform .1s, background .15s; flex-shrink: 0; font-family: inherit; padding: 0; }
+  .rec .rank:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); transform: scale(1.15); }
+  .rec .rank:active { transform: scale(0.95); }
   .rec.top .rank { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
   .rec .type { font-size: 17px; font-weight: 800; }
   .rec .loc { color: var(--ink); font-size: 15px; }
@@ -1897,12 +1899,24 @@ function renderRecs() {
     const row = document.createElement("div");
     row.className = "rec" + (i === 0 ? " top" : "");
     row.innerHTML =
-      '<div class="rank">' + (i + 1) + "</div>" +
+      '<button class="rank" title="Throw this pitch">' + (i + 1) + "</button>" +
       '<div class="type"></div><div class="loc"></div>' +
       '<span class="tag ' + (r.intent === "chase" ? "chase" : "strike") + '">' + (r.intent === "chase" ? "Chase" : "Strike") + "</span>" +
       '<div class="why">why?</div>';
     row.querySelector(".type").textContent = r.type;
     row.querySelector(".loc").textContent = r.locationName;
+    // rank number click: auto-fill last pitch inputs so you only need to pick the outcome
+    row.querySelector(".rank").addEventListener("click", e => {
+      e.stopPropagation();
+      state.lastPitchType = r.type;
+      const avgVelo = state.averages[r.type] && state.averages[r.type].velo;
+      if (avgVelo != null && !Number.isNaN(avgVelo)) setVelo(avgVelo, { fromAvg: true });
+      state.lastLoc = { x: r.x, y: r.y };
+      renderPitchTypes();
+      renderZone();
+      renderContextSummary();
+      renderMaps();
+    });
     row.addEventListener("click", () => {
       const detail = row.nextElementSibling;
       const isOpen = row.classList.contains("open");
@@ -1962,18 +1976,78 @@ function renderAll() {
   setVelo(state.velo);
   pitcherNameInput.value = state.pitcherName;
   updatePitcherCard();
+  renderSavedPitchers();
   [...pitchHand.children].forEach(x => x.classList.toggle("on", x.dataset.hand === state.pitcherHand));
   [...timingSeg.children].forEach(x => x.classList.toggle("on", x.dataset.t === state.timing));
-  
+
 }
 const engineBadge = document.getElementById("engineBadge");
 engineBadge.textContent = "Engine Live";
 engineBadge.classList.remove("demo");
 engineBadge.classList.add("live");
 load();
+
+/* ---------------- load a saved pitcher or a saved game from a home-screen link ---------------- */
+(function loadFromQueryString() {
+  const params = new URLSearchParams(location.search);
+  const loadPitcherId = params.get("loadPitcher");
+  const loadGameId = params.get("loadGame");
+
+  if (loadPitcherId) {
+    const p = Store.pitchers.get(loadPitcherId);
+    if (p) {
+      state.pitcherName = p.name;
+      state.pitcherHand = p.hand;
+      state.mound = p.mound;
+      state.ext = p.ext;
+      state.relH = p.relH;
+      PITCH_TYPES.forEach(t => {
+        state.averages[t] = p.averages && p.averages[t] ? Object.assign({}, p.averages[t]) : { velo: null, vert: null, horz: null };
+      });
+    }
+  }
+
+  if (loadGameId) {
+    const g = Store.games.get(loadGameId);
+    const s = g && g.snapshot;
+    if (s) {
+      state.pitcherName = s.pitcherName || "";
+      state.pitcherHand = s.pitcherHand || "R";
+      PITCH_TYPES.forEach(t => {
+        state.averages[t] = s.averages && s.averages[t] ? Object.assign({}, s.averages[t]) : { velo: null, vert: null, horz: null };
+      });
+      state.mound = s.mound != null ? s.mound : 60.5;
+      state.ext = s.ext != null ? s.ext : 6.0;
+      state.relH = s.relH != null ? s.relH : 6.0;
+      state.batterIdx = s.batterIdx != null ? s.batterIdx : 0;
+      state.batterHand = s.batterHand || "R";
+      state.custom = s.custom ? JSON.parse(JSON.stringify(s.custom)) : null;
+      state.balls = s.balls || 0;
+      state.strikes = s.strikes || 0;
+      state.timing = s.timing || "unknown";
+      state.lastPitchType = s.lastPitchType || null;
+      state.velo = s.velo != null ? s.velo : 94;
+      state.lastLoc = s.lastLoc ? Object.assign({}, s.lastLoc) : null;
+      state.pitchHistory = Array.isArray(s.pitchHistory) ? JSON.parse(JSON.stringify(s.pitchHistory)) : [];
+      state.lastResult = s.lastResult || null;
+      state.presetTendencies = s.presetTendencies && typeof s.presetTendencies === "object" ? JSON.parse(JSON.stringify(s.presetTendencies)) : {};
+    }
+  }
+
+  if (loadPitcherId || loadGameId) {
+    save();
+    history.replaceState(null, "", location.pathname);
+  }
+})();
+
 buildTable();
 buildMini(mapNext);
 renderAll();
+if (state.lastPitchType || state.custom) {
+  state.recommendations = recommend();
+  renderRecs();
+  renderMaps();
+}
 </script>
 </body>
 </html>
