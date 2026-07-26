@@ -226,9 +226,7 @@
   .badge { font-size: 10px; letter-spacing: 1.2px; padding: 4px 9px; border-radius: 999px; text-transform: uppercase; font-weight: 800; }
   .badge.demo { background: #fff4e0; color: var(--chase); border: 1px solid #f4d9a8; }
   .rec-list { display: flex; flex-direction: column; gap: 8px; }
-  .context-summary { font-size: 12px; font-weight: 600; color: var(--dim); line-height: 1.6;
-    background: var(--panel-2); border: 1px solid var(--line); border-radius: 10px;
-    padding: 10px 12px; margin-bottom: 12px; }
+  .context-summary { font-size: 12px; font-weight: 600; color: var(--dim); line-height: 1.6; }
   .context-summary .cs-row { display: flex; gap: 6px; flex-wrap: wrap; }
   .context-summary .cs-row + .cs-row { margin-top: 6px; }
   .context-summary .cs-lbl { color: var(--dim); font-weight: 700; }
@@ -417,6 +415,14 @@
         <div class="mini-grid" id="mapNext"></div>
         <div class="mini-plate"><svg width="70" height="20" viewBox="0 0 90 26"><path d="M6 2 H84 L84 10 L45 24 L6 10 Z" fill="none" stroke="#7c8b99" stroke-width="2"/></svg></div>
       </section>
+
+      <section class="panel">
+        <div class="panel-head">
+          <div class="panel-title">Engine Reading</div>
+          <div class="panel-hint">what it's working with</div>
+        </div>
+        <div class="context-summary" id="contextSummary"></div>
+      </section>
     </div>
 
     <!-- RIGHT COLUMN: what just happened on the last pitch -->
@@ -491,7 +497,6 @@
         <span class="badge demo" id="engineBadge">Awaiting Spec</span>
         <div class="panel-hint">Strike / Chase</div>
       </div>
-      <div class="context-summary" id="contextSummary"></div>
       <div class="rec-list" id="recList">
         <div class="rec-empty">Set up your pitcher, pick a batter, then press GO.</div>
       </div>
