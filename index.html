@@ -167,13 +167,28 @@
 
   /* ---- result buttons ---- */
   .result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
-  .result-grid button { padding: 12px 6px; font-size: 13px; font-weight: 800; }
+  .result-grid button { padding: 14px 6px; font-size: 14px; font-weight: 800; transition: border-color .12s, transform .06s, box-shadow .12s; }
   .result-grid button[data-r="strike"] { color: var(--danger); }
   .result-grid button[data-r="whiff"] { color: var(--danger); }
   .result-grid button[data-r="ball"] { color: var(--accent); }
   .result-grid button[data-r="foul"] { color: var(--chase); }
   .result-grid button[data-r="out"] { color: #7f1d1d; }
   .result-grid button[data-r="hit"] { color: var(--good); }
+  .result-grid button.on { border-width: 2px; box-shadow: 0 2px 12px rgba(15,23,42,.12); }
+  .result-grid button.on[data-r="strike"] { background: #fff1f2; border-color: var(--danger); }
+  .result-grid button.on[data-r="whiff"] { background: #fff1f2; border-color: var(--danger); }
+  .result-grid button.on[data-r="ball"] { background: var(--accent-soft); border-color: var(--accent); }
+  .result-grid button.on[data-r="foul"] { background: #fffbeb; border-color: var(--chase); }
+  .result-grid button.on[data-r="out"] { background: #fef2f2; border-color: #7f1d1d; }
+  .result-grid button.on[data-r="hit"] { background: #ecfdf5; border-color: var(--good); }
+
+  /* count pulse when it changes */
+  .num.pulse { animation: numPulse .5s ease-out; }
+  @keyframes numPulse {
+    0%   { transform: scale(1); color: var(--ink); }
+    30%  { transform: scale(1.3); color: var(--accent); }
+    100% { transform: scale(1); color: var(--ink); }
+  }
 
   .batter-info { margin-top: 12px; font-size: 12px; color: var(--dim); font-weight: 700; line-height: 1.5; }
   .batter-info b { color: var(--ink); }
@@ -1065,34 +1080,46 @@ document.querySelectorAll("[data-c]").forEach(b => {
   });
 });
 function renderCount() {
-  document.getElementById("balls").textContent = state.balls;
-  document.getElementById("strikes").textContent = state.strikes;
+  const bEl = document.getElementById("balls");
+  const sEl = document.getElementById("strikes");
+  const prevB = bEl.textContent, prevS = sEl.textContent;
+  bEl.textContent = state.balls;
+  sEl.textContent = state.strikes;
+  // pulse whichever number changed
+  if (bEl.textContent !== prevB) { bEl.classList.remove("pulse"); void bEl.offsetWidth; bEl.classList.add("pulse"); }
+  if (sEl.textContent !== prevS) { sEl.classList.remove("pulse"); void sEl.offsetWidth; sEl.classList.add("pulse"); }
 }
 
 /* ---------------- result buttons (auto-update the count) ---------------- */
-document.querySelectorAll("#resultGrid button").forEach(b => {
-  b.addEventListener("click", () => {
-    const r = b.dataset.r;
-    if (r === "strike" || r === "whiff") {
-      if (state.strikes < 2) state.strikes++;
-    } else if (r === "ball") {
-      if (state.balls < 3) state.balls++;
-    } else if (r === "foul") {
-      if (state.strikes < 2) state.strikes++;
-    } else if (r === "out" || r === "hit") {
-      // at-bat over - reset for the next batter
-      state.balls = 0; state.strikes = 0;
-      state.lastLoc = null; state.lastPitchType = null; state.timing = "unknown";
-      state.recommendations = []; state.custom = null;
-      renderAll();
-      return;
-    }
-    if (r === "whiff") {
-      state.timing = "late";
-      [...timingSeg.children].forEach(x => x.classList.toggle("on", x.dataset.t === state.timing));
-    }
-    renderCount();
-  });
+const resultGrid = document.getElementById("resultGrid");
+resultGrid.addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  const r = b.dataset.r;
+  // visually mark which result was pressed (sticks until you press another)
+  [...resultGrid.children].forEach(x => x.classList.remove("on"));
+  b.classList.add("on");
+
+  if (r === "strike" || r === "whiff") {
+    if (state.strikes < 2) state.strikes++;
+  } else if (r === "ball") {
+    if (state.balls < 3) state.balls++;
+  } else if (r === "foul") {
+    if (state.strikes < 2) state.strikes++;
+  } else if (r === "out" || r === "hit") {
+    // at-bat over - reset for the next batter
+    state.balls = 0; state.strikes = 0;
+    state.lastLoc = null; state.lastPitchType = null; state.timing = "unknown";
+    state.recommendations = []; state.custom = null;
+    [...resultGrid.children].forEach(x => x.classList.remove("on"));
+    renderAll();
+    return;
+  }
+  if (r === "whiff") {
+    state.timing = "late";
+    [...timingSeg.children].forEach(x => x.classList.toggle("on", x.dataset.t === state.timing));
+  }
+  renderCount();
 });
 
 /* ---------------- first pitch button ---------------- */
@@ -1100,6 +1127,7 @@ document.getElementById("firstPitchBtn").addEventListener("click", () => {
   state.balls = 0; state.strikes = 0;
   state.lastLoc = null; state.lastPitchType = null; state.timing = "unknown";
   state.recommendations = recommend();
+  [...resultGrid.children].forEach(x => x.classList.remove("on"));
   renderAll();
 });
 
@@ -1108,6 +1136,7 @@ document.getElementById("newAtBat").addEventListener("click", () => {
   state.balls = 0; state.strikes = 0;
   state.lastLoc = null; state.lastPitchType = null; state.timing = "unknown";
   state.recommendations = []; state.custom = null;
+  [...resultGrid.children].forEach(x => x.classList.remove("on"));
   renderAll();
 });
 document.getElementById("fullReset").addEventListener("click", () => {
