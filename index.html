@@ -144,6 +144,14 @@
   .batter-grid button .bn { font-weight: 800; display: block; }
   .batter-grid button .ba { font-size: 10px; color: var(--dim); font-weight: 700; }
   .batter-grid button.on .ba { color: var(--accent-ink); opacity: .8; }
+  /* ---- custom batter scratch profile ---- */
+  .cust-lbl { font-size: 10px; letter-spacing: 1.3px; text-transform: uppercase; color: var(--dim); font-weight: 800; margin: 14px 0 7px; }
+  .hot-picker { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+  .hot-picker button { padding: 9px 4px; font-size: 11px; }
+  .note-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
+  .note-grid button { padding: 9px 8px; font-size: 11.5px; text-align: left; }
+  .note-grid button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+
   .batter-info { margin-top: 12px; font-size: 12px; color: var(--dim); font-weight: 700; line-height: 1.5; }
   .batter-info b { color: var(--ink); }
   .batter-info .hot { color: var(--danger); font-weight: 800; }
@@ -246,6 +254,10 @@
     background: var(--panel-2); font: inherit; font-weight: 700; color: var(--ink);
   }
   .field input.text:focus { outline: none; border-color: var(--accent); background: #fff; }
+  .num-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .num-field span { display: block; font-size: 10px; letter-spacing: 1.2px; text-transform: uppercase; color: var(--dim); font-weight: 800; margin-bottom: 6px; }
+  .field-note { margin-top: 8px; font-size: 12px; font-weight: 700; color: var(--dim); line-height: 1.5; }
+  .field-note b { color: var(--ink); }
   #closeSettings { width: 100%; background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-size: 15px; padding: 14px; box-shadow: 0 4px 14px rgba(29,78,216,.22); }
 
   @media (max-width: 900px) {
@@ -291,6 +303,23 @@
         </div>
         <div class="batter-grid" id="batterGrid"></div>
         <div class="batter-info" id="batterInfo">Select a batter</div>
+
+        <div class="custom-box" id="customBox" hidden>
+          <div class="sub-head"><div class="panel-title">This Batter</div>
+            <div class="panel-hint">clears on New At-Bat</div></div>
+
+          <div class="cust-lbl">Bats</div>
+          <div class="seg" id="custHand">
+            <button data-hand="L">Lefty</button>
+            <button data-hand="R" class="on">Righty</button>
+          </div>
+
+          <div class="cust-lbl">Where he does damage</div>
+          <div class="hot-picker" id="hotPicker"></div>
+
+          <div class="cust-lbl">Scouting notes &middot; each one changes the math</div>
+          <div class="note-grid" id="noteGrid"></div>
+        </div>
       </section>
 
       <section class="panel step" id="stepCount">
@@ -422,6 +451,31 @@
     </div>
 
     <div class="field">
+      <label>Mound Distance &middot; feet to the plate</label>
+      <div class="seg" id="moundSeg">
+        <button data-d="46">46</button>
+        <button data-d="50">50</button>
+        <button data-d="54">54</button>
+        <button data-d="60.5" class="on">60.5</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Release Geometry &middot; drives the flight-time math</label>
+      <div class="num-row">
+        <div class="num-field">
+          <span>Extension (ft)</span>
+          <input class="text" type="number" id="extIn" min="3" max="8" step="0.1" value="6.0" inputmode="decimal">
+        </div>
+        <div class="num-field">
+          <span>Release Height (ft)</span>
+          <input class="text" type="number" id="relHIn" min="3" max="8" step="0.1" value="6.0" inputmode="decimal">
+        </div>
+      </div>
+      <div class="field-note" id="physNote"></div>
+    </div>
+
+    <div class="field">
       <label>Average Movements &middot; set pregame</label>
       <table>
         <thead>
@@ -454,6 +508,33 @@ const BATTERS = [
   { name: "Hank Olson",    hand: "R", arch: "Slugger",       hot: { v: "mid",  h: "close" } },
   { name: "Tyler Quinn",   hand: "L", arch: "Table-Setter",  hot: { v: "low",  h: "far"   } },
 ];
+/* The blank slot: a scratch profile you fill in for the hitter standing there.
+   Every toggle below is read by the engine, so nothing here is decoration. */
+const CUSTOM_IDX = BATTERS.length;
+const BATTER_NOTES = [
+  { id: "chaseHigh",    label: "Chases high" },
+  { id: "chaseLow",     label: "Chases low" },
+  { id: "chaseAway",    label: "Chases away" },
+  { id: "chaseIn",      label: "Chases inside" },
+  { id: "lateVelo",     label: "Late on velo" },
+  { id: "outFront",     label: "Out front / early" },
+  { id: "sitsFastball", label: "Sitting fastball" },
+  { id: "sitsSoft",     label: "Sitting soft" },
+  { id: "weakBreaking", label: "Weak vs breaking" },
+  { id: "pullHappy",    label: "Pull happy" },
+  { id: "patient",      label: "Patient on 0-0" },
+  { id: "firstSwing",   label: "Hacks at pitch 1" },
+];
+function blankCustom() {
+  const notes = {};
+  BATTER_NOTES.forEach(n => { notes[n.id] = false; });
+  return { name: "This Batter", hand: "R", arch: "Custom", hot: { v: "mid", h: "mid" }, notes };
+}
+function activeBatter() {
+  if (state.batterIdx === CUSTOM_IDX) return state.custom;
+  return BATTERS[state.batterIdx] || null;
+}
+
 function oppZone(z) {
   if (z === "high") return "low";
   if (z === "low") return "high";
@@ -482,6 +563,10 @@ const state = {
   strikes: 0,
   lastLoc: null,            // {x, y} on the 5x5 grid in fractional cell units (0..5), free placement
   averages: {},             // pitchType -> {velo, vert, horz}
+  mound: 60.5,              // ft from the rubber to the front of the plate
+  ext: 6.0,                 // release extension in ft toward the plate
+  relH: 6.0,                // release height in ft
+  custom: null,             // blank per-batter profile, cleared on New At-Bat
   recommendations: []
 };
 
@@ -493,7 +578,8 @@ function save() {
   try {
     localStorage.setItem(STORE_KEY, JSON.stringify({
       averages: state.averages, pitcherHand: state.pitcherHand, batterHand: state.batterHand,
-      pitcherName: state.pitcherName, batterIdx: state.batterIdx
+      pitcherName: state.pitcherName, batterIdx: state.batterIdx,
+      mound: state.mound, ext: state.ext, relH: state.relH
     }));
   } catch (e) { /* private browsing */ }
 }
@@ -506,7 +592,10 @@ function load() {
     if (d.pitcherHand) state.pitcherHand = d.pitcherHand;
     if (d.batterHand) state.batterHand = d.batterHand;
     if (typeof d.pitcherName === "string") state.pitcherName = d.pitcherName;
-    if (typeof d.batterIdx === "number" && d.batterIdx >= 0 && d.batterIdx < BATTERS.length) state.batterIdx = d.batterIdx;
+    if (typeof d.batterIdx === "number" && d.batterIdx >= 0 && d.batterIdx <= BATTERS.length) state.batterIdx = d.batterIdx;
+    if (typeof d.mound === "number" && d.mound >= 30 && d.mound <= 70) state.mound = d.mound;
+    if (typeof d.ext === "number" && d.ext >= 2 && d.ext <= 9) state.ext = d.ext;
+    if (typeof d.relH === "number" && d.relH >= 2 && d.relH <= 9) state.relH = d.relH;
   } catch (e) { /* corrupt */ }
 }
 
@@ -601,13 +690,89 @@ BATTERS.forEach((b, i) => {
   });
   batterGrid.appendChild(btn);
 });
+const customBtn = document.createElement("button");
+customBtn.dataset.bi = CUSTOM_IDX;
+customBtn.innerHTML = '<span class="bn">This Batter</span><span class="ba">Custom</span>';
+customBtn.addEventListener("click", () => {
+  state.batterIdx = CUSTOM_IDX;
+  if (!state.custom) state.custom = blankCustom();
+  state.batterHand = state.custom.hand;
+  renderBatterGrid();
+  renderBatterHand();
+  renderBatterInfo();
+  save();
+});
+batterGrid.appendChild(customBtn);
 function renderBatterGrid() {
   [...batterGrid.children].forEach(b => b.classList.toggle("on", +b.dataset.bi === state.batterIdx));
 }
+
+/* ---------------- custom batter scratch profile ---------------- */
+const customBox = document.getElementById("customBox");
+const hotPicker = document.getElementById("hotPicker");
+const noteGrid = document.getElementById("noteGrid");
+const custHand = document.getElementById("custHand");
+const HOT_OPTIONS = [];
+["high", "mid", "low"].forEach(v => ["close", "mid", "far"].forEach(h => HOT_OPTIONS.push({ v, h })));
+HOT_OPTIONS.forEach(opt => {
+  const btn = document.createElement("button");
+  btn.textContent = zoneLabel(opt.v, opt.h);
+  btn.dataset.v = opt.v;
+  btn.dataset.h = opt.h;
+  btn.addEventListener("click", () => {
+    if (!state.custom) state.custom = blankCustom();
+    state.custom.hot = { v: opt.v, h: opt.h };
+    renderCustomBox();
+    renderBatterInfo();
+  });
+  hotPicker.appendChild(btn);
+});
+BATTER_NOTES.forEach(n => {
+  const btn = document.createElement("button");
+  btn.textContent = n.label;
+  btn.dataset.note = n.id;
+  btn.addEventListener("click", () => {
+    if (!state.custom) state.custom = blankCustom();
+    state.custom.notes[n.id] = !state.custom.notes[n.id];
+    renderBatterInfo();
+  });
+  noteGrid.appendChild(btn);
+});
+custHand.addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  if (!state.custom) state.custom = blankCustom();
+  state.custom.hand = b.dataset.hand;
+  state.batterHand = b.dataset.hand; // sync the matchup hand, same as preset batters
+  renderCustomBox();
+  renderBatterHand();
+  renderBatterInfo();
+});
+function renderCustomBox() {
+  customBox.hidden = state.batterIdx !== CUSTOM_IDX;
+  if (state.batterIdx !== CUSTOM_IDX) return;
+  if (!state.custom) state.custom = blankCustom();
+  const c = state.custom;
+  [...custHand.children].forEach(b => b.classList.toggle("on", b.dataset.hand === c.hand));
+  [...hotPicker.children].forEach(b => b.classList.toggle("on", b.dataset.v === c.hot.v && b.dataset.h === c.hot.h));
+  [...noteGrid.children].forEach(b => b.classList.toggle("on", !!c.notes[b.dataset.note]));
+}
+
 function renderBatterInfo() {
-  const b = BATTERS[state.batterIdx];
-  if (!b) { batterInfo.innerHTML = "Select a batter"; return; }
+  const b = activeBatter();
+  renderCustomBox();
+  if (!b) { batterInfo.innerHTML = "Select a batter"; renderSteps(); return; }
   const hot = b.hot, cold = { v: oppZone(hot.v), h: oppZone(hot.h) };
+  if (state.batterIdx === CUSTOM_IDX) {
+    const noteCount = BATTER_NOTES.filter(n => b.notes[n.id]).length;
+    batterInfo.innerHTML =
+      '<b>This Batter</b> (' + b.hand + 'HH) &middot; Custom<br>' +
+      'Hot zone (avoid): <span class="hot">' + zoneLabel(hot.v, hot.h) + '</span> &middot; ' +
+      'Cold zone (attack): <span class="cold">' + zoneLabel(cold.v, cold.h) + '</span>' +
+      (noteCount ? ' &middot; ' + noteCount + ' scouting note' + (noteCount === 1 ? "" : "s") + ' active' : '');
+    renderSteps();
+    return;
+  }
   batterInfo.innerHTML =
     '<b>' + b.name + '</b> (' + b.hand + 'HH) &middot; ' + b.arch + '<br>' +
     'Hot zone (avoid): <span class="hot">' + zoneLabel(hot.v, hot.h) + '</span> &middot; ' +
@@ -707,6 +872,42 @@ pitchHand.addEventListener("click", e => {
   save();
 });
 
+/* ---------------- release geometry (mound distance, extension, release height) ---------------- */
+const moundSeg = document.getElementById("moundSeg");
+const extInput = document.getElementById("extIn");
+const relHInput = document.getElementById("relHIn");
+const physNote = document.getElementById("physNote");
+moundSeg.addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  state.mound = Number(b.dataset.d);
+  [...moundSeg.children].forEach(x => x.classList.toggle("on", x === b));
+  renderPhysNote();
+  save();
+});
+extInput.addEventListener("input", () => {
+  const v = Number(extInput.value);
+  if (Number.isFinite(v)) { state.ext = clamp(v, 2, 9); renderPhysNote(); save(); }
+});
+relHInput.addEventListener("input", () => {
+  const v = Number(relHInput.value);
+  if (Number.isFinite(v)) { state.relH = clamp(v, 2, 9); renderPhysNote(); save(); }
+});
+function renderPhysNote() {
+  const ref = REF["4 Seam"];
+  const a = state.averages["4 Seam"] || {};
+  const velo = a.velo != null ? a.velo : ref.velo;
+  const fl = flight(velo, a.vert != null ? a.vert : ref.ivb, a.horz != null ? a.horz : ref.horz);
+  physNote.innerHTML = 'At ' + Math.round(velo) + ' mph, flight time to the plate is <b>' +
+    fl.t.toFixed(3) + 's</b> &middot; perceived velo <b>' + Math.round(fl.perceived) + ' mph</b>.';
+}
+function renderPhys() {
+  [...moundSeg.children].forEach(x => x.classList.toggle("on", Number(x.dataset.d) === state.mound));
+  extInput.value = state.ext;
+  relHInput.value = state.relH;
+  renderPhysNote();
+}
+
 /* ---------------- pitcher settings card + modal ---------------- */
 const pitcherNameInput = document.getElementById("pitcherName");
 const pitcherNameDisp = document.getElementById("pitcherNameDisp");
@@ -793,7 +994,7 @@ function renderCount() {
 document.getElementById("newAtBat").addEventListener("click", () => {
   state.balls = 0; state.strikes = 0;
   state.lastLoc = null; state.lastPitchType = null; state.timing = "unknown";
-  state.recommendations = [];
+  state.recommendations = []; state.custom = null;
   renderAll();
 });
 document.getElementById("fullReset").addEventListener("click", () => {
@@ -845,6 +1046,73 @@ const REF = {
   "Change":  { velo: 84, ivb:  10, horz:  13, fam: "offspeed" },
 };
 
+/* ---------------- physics ----------------
+   Closed-form ball-flight math. Nothing here is drawn; it only feeds the
+   score so the engine reasons about what the hitter actually experiences
+   (reaction time, break that happens after he commits, approach angle)
+   instead of comparing plate-side movement numbers.
+
+   Units: velo mph, IVB/Horz inches at the plate, distances feet, time seconds.
+-------------------------------------------- */
+const FPS_PER_MPH = 1.46667;
+const G = 32.174;              // ft/s^2
+const REACT = 0.167;           // s the hitter needs to start the swing; he commits before this
+const DRAG_PER_FT = 0.00155;   // fraction of release speed lost per foot of flight
+const ZONE_TOP = 3.5, ZONE_BOT = 1.5;   // rulebook zone in ft
+const GRID_TOP = 3.9, GRID_BOT = 1.1;   // the 5x5 grid overhangs the zone by one cell
+
+/* height in ft of a fractional grid row (y = 0 at the top, 5 at the bottom) */
+function gridHeight(y) { return GRID_TOP - (clamp(y, 0, 5) / 5) * (GRID_TOP - GRID_BOT); }
+
+/* Everything that depends only on the pitch and the mound, not the target. */
+function flight(velo, ivb, horz) {
+  const d = Math.max(20, state.mound - state.ext);      // release point to plate
+  const vRel = velo * FPS_PER_MPH;
+  const vPlate = vRel * (1 - DRAG_PER_FT * d);
+  const vAvg = (vRel + vPlate) / 2;
+  const t = d / vAvg;                                   // flight time
+  // the hitter must commit REACT seconds before the ball arrives
+  const tc = Math.max(0.05, t - REACT);
+  // movement from a roughly constant force grows as 1/2*a*t^2, so only this
+  // fraction of the total break has happened when he decides to swing
+  const f = (tc / t) * (tc / t);
+  // league-typical release distance, so perceived velo compares like for like
+  const dRef = Math.max(20, state.mound - 6.0);
+  return {
+    d, t, tc, f,
+    vPlateMph: vPlate / FPS_PER_MPH,
+    perceived: velo * (dRef / d),
+    lateBreak: 1 - f,                                   // share of break after commit
+    ivbAtCommit: ivb * f,
+    horzAtCommit: horz * f,
+    ivb, horz, velo
+  };
+}
+
+/* Vertical approach angle in degrees at the plate for a pitch aimed at height z.
+   Flat (about -4.5) beats hitters at the top of the zone; steep (about -9)
+   works at and below the knees. */
+function approachAngle(fl, z) {
+  const t = fl.t, aIvb = 2 * (fl.ivb / 12) / (t * t);   // upward accel implied by IVB
+  const vz0 = (z - state.relH - 0.5 * (aIvb - G) * t * t) / t;
+  const vzPlate = vz0 + (aIvb - G) * t;
+  const vxy = fl.d / t;
+  return Math.atan2(vzPlate, vxy) * 180 / Math.PI;
+}
+
+/* How well a candidate hides behind the previous pitch.
+   ratio > 1 means the two look alike when he commits and separate afterwards. */
+function tunnel(fl, prev) {
+  const sepCommit = Math.hypot(fl.ivbAtCommit - prev.ivbAtCommit, fl.horzAtCommit - prev.horzAtCommit);
+  const sepPlate  = Math.hypot(fl.ivb - prev.ivb, fl.horz - prev.horz);
+  return { sepCommit, sepPlate, ratio: sepPlate / Math.max(sepCommit, 0.75) };
+}
+
+/* If the hitter times the previous pitch, this is how far off the barrel is,
+   in inches of ball travel, on the candidate. */
+function timingError(fl, prev) {
+  return Math.abs(fl.t - prev.t) * ((fl.d / fl.t)) * 12;
+}
 function locName(col, row, hand) {
   const v = row <= 1 ? "Up" : (row >= 3 ? "Down" : "Mid");
   let s;
@@ -911,12 +1179,19 @@ function scorePitch(pitch) {
     if (fam === "breaking" && pitch !== "Sweeper") score -= 3;
   }
 
-  // --- 4. tunneling / movement + velo separation from last pitch ---
+  // --- 4. tunneling / timing separation from the last pitch (physics) ---
+  const fl = flight(velo, ivb, horz);
   if (lastType && lastType !== pitch) {
-    const l = REF[lastType];
-    const sep = Math.hypot(ivb - l.ivb, horz - l.horz);
-    if (sep > 25) score += 8; else if (sep > 15) score += 4;
-    if (Math.abs(velo - l.velo) > 10) score += 5;
+    const la = state.averages[lastType] || {}, lr = REF[lastType];
+    const prev = flight(la.velo != null ? la.velo : lr.velo,
+                        la.vert != null ? la.vert : lr.ivb,
+                        la.horz != null ? la.horz : lr.horz);
+    const tn = tunnel(fl, prev);
+    // reward break that arrives after he has already committed
+    score += clamp((tn.ratio - 1) * 4, 0, 10);
+    score += clamp(tn.sepPlate * 0.22, 0, 7);
+    // and reward the barrel being off in time, measured in inches of ball travel
+    score += clamp(timingError(fl, prev) * 0.10, 0, 8);
   } else if (lastType === pitch) {
     if (timing === "late" && pitch === "4 Seam") score += 6;
     else if (timing === "early" && (fam === "breaking" || fam === "offspeed")) score -= 10;
@@ -961,7 +1236,7 @@ function scorePitch(pitch) {
   // --- 6. batter profile: avoid the hot zone, attack the cold zone ---
   //     On the first pitch (0-0, no last pitch) this is the main signal, so it
   //     carries more weight. The dot is also nudged off the hot zone.
-  const batter = BATTERS[state.batterIdx];
+  const batter = activeBatter();
   if (batter && batter.hot) {
     const hot = batter.hot;
     const cold = { v: oppZone(hot.v), h: oppZone(hot.h) };
@@ -986,6 +1261,48 @@ function scorePitch(pitch) {
       score += 5 * mult;
     }
   }
+
+  // --- 6b. scouting notes on the custom profile ---
+  if (batter && batter.notes) {
+    const n = batter.notes;
+    const away = bh === "R" ? x < 2 : x > 3;
+    const inside = bh === "R" ? x > 3 : x < 2;
+    const isFirst = (state.balls === 0 && state.strikes === 0);
+
+    if (intent === "chase") {
+      if (n.chaseHigh && y < 2) score += 6;
+      if (n.chaseLow && y > 3) score += 6;
+      if (n.chaseAway && away) score += 6;
+      if (n.chaseIn && inside) score += 6;
+    }
+    if (n.lateVelo) {
+      if (fam === "fastball") score += pitch === "4 Seam" ? 12 : 9;
+      else if (fam === "offspeed") score -= 5;
+    }
+    if (n.outFront) {
+      if (fam === "offspeed") score += 9;
+      else if (fam === "breaking") score += 5;
+      else score -= 4;
+    }
+    if (n.sitsFastball) score += fam === "fastball" ? -7 : 7;
+    if (n.sitsSoft) score += fam === "fastball" ? 7 : -7;
+    if (n.weakBreaking && fam === "breaking") score += 8;
+    if (n.pullHappy) score += away ? 5 : inside ? -5 : 0;
+    if (isFirst && n.patient) score += intent === "strike" ? 6 : -5;
+    if (isFirst && n.firstSwing) score += intent === "chase" ? 6 : -3;
+  }
+
+  // --- 7. approach angle and perceived velo fit for the chosen height ---
+  const vaa = Math.abs(approachAngle(fl, gridHeight(y)));
+  if (y < 2) {                                   // working the upper third
+    score += clamp((5.5 - vaa) * 3, 0, 6);       // flat plane beats them up there
+    if (vaa > 8.5) score -= 4;                   // a steep pitch up is a mistake
+  } else if (y > 3) {                            // working down and below
+    score += clamp((vaa - 7) * 2, 0, 6);
+    if (vaa < 5.5) score -= 3;
+  }
+  if (fam === "fastball") score += clamp((fl.perceived - velo) * 1.2, -3, 4);  // extension
+  if (intent === "chase") score += clamp((0.44 - fl.t) * 18, -2, 4);           // less time to read it
 
   x = clamp(x, 0.1, 4.9);
   y = clamp(y, 0.1, 4.9);
@@ -1076,7 +1393,7 @@ function renderMaps() {
 /* ---------------- boot ---------------- */
 function renderAll() {
   renderZone(); renderPitchTypes(); renderBatterHand(); renderBatterGrid(); renderBatterInfo();
-  renderCount(); renderRecs(); renderMaps();
+  renderCount(); renderRecs(); renderMaps(); renderPhys();
   setVelo(state.velo);
   pitcherNameInput.value = state.pitcherName;
   updatePitcherCard();
