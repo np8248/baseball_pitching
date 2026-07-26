@@ -1,7 +1,7 @@
-# PitchCall - Project Handoff
+# Pitch Predictor - Project Handoff
 
 ## Goal
-Build **PitchCall**, an iPad-first, in-game pitch-calling assistant for the dugout. Single self-contained `index.html`, no backend, works offline, deployable via GitHub Pages. Referenced design: `/Users/noahp/Desktop/Screenshot 2026-07-25 at 10.24.08 AM.png`.
+Build **Pitch Predictor**, an iPad-first, in-game pitch-calling assistant for the dugout. Single self-contained `index.html`, no backend, works offline, deployable via GitHub Pages. Referenced design: `/Users/noahp/Desktop/Screenshot 2026-07-25 at 10.24.08 AM.png`.
 
 ## Division of Labor (user's intent)
 - **The other AI (GPT, via Factory)** = domain expert. It researches pitch-calling facts and produces an exact specification. It also audits the implementation against the facts afterward.
@@ -21,7 +21,7 @@ Build **PitchCall**, an iPad-first, in-game pitch-calling assistant for the dugo
    ```
    Available GPT models include: `gpt-5.6-sol`, `gpt-5.6-terra`, `gpt-5.6-luna`, `gpt-5.5`, `gpt-5.5-fast`, `gpt-5.5-pro`, `gpt-5.4`, `gpt-5.4-fast`, `gpt-5.4-mini`, `gpt-5.3-codex`, `gpt-5.3-codex-fast`, `gpt-5.2`.
 2. **UI shell built** at `index.html` (21KB, single file, no deps). Layout matches the screenshot:
-   - Header (PitchCall logo, New At-Bat / Full Reset)
+   - Header (Pitch Predictor logo, New At-Bat / Full Reset)
    - Left column: strike-zone tap grid (5x5: inner 3x3 = zone, outer ring = chase), velocity slider (60-106), count stepper (balls/strikes), pitcher handedness (L/R)
    - Right column: timing (Early/Late/On Time/Unknown), pitch-type buttons (4 Seam, Sinker, Cutter, Gyro, Sweeper, Curve, Split, Change), editable Pitcher Average Movements table (Velo/Vert/Horz per pitch)
    - GO button + ranked recommendations list (top 5) with STRIKE/CHASE tags
@@ -59,7 +59,7 @@ Build **PitchCall**, an iPad-first, in-game pitch-calling assistant for the dugo
 ## Commit Guidance
 The UI shell is working, self-contained, and useful on its own. Commit it now so progress is saved on GitHub. Suggested message:
 ```
-Add PitchCall UI shell with zone grid, pitch controls, and rec list
+Add Pitch Predictor UI shell with zone grid, pitch controls, and rec list
 
 Single-file index.html matching the target screenshot. Engine is a stub
 pending the domain spec from the GPT reviewer channel. localStorage

@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#eef2f6">
-<title>PitchCall</title>
+<title>Pitch Predictor</title>
 <style>
   :root {
     --bg: #eef2f6;
@@ -244,7 +244,7 @@
 <div class="wrap">
 
   <header class="bar">
-    <div class="logo">Pitch<b>Call</b></div>
+    <div class="logo">Pitch<b>Predictor</b></div>
     <div class="subtitle">In-Game Pitch Caller</div>
     <div class="bar-actions">
       <button class="gear-btn" id="openSettings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Pitcher Settings</button>
@@ -416,7 +416,7 @@
 
 const PITCH_TYPES = ["4 Seam", "Sinker", "Cutter", "Gyro", "Sweeper", "Curve", "Split", "Change"];
 
-/* 9 preset batter profiles (same archetypes as the PitchCall Sim).
+/* 9 preset batter profiles (same archetypes as the Pitch Predictor Sim).
    hot = the batter's power zone in {vertical, horizontal} from the batter's
    perspective. The engine avoids pitching there and attacks the opposite. */
 const BATTERS = [
@@ -747,7 +747,7 @@ document.getElementById("fullReset").addEventListener("click", () => {
   renderAll();
 });
 
-/* same sample arsenal as the PitchCall Sim repo, so values match between apps */
+/* same sample arsenal as the Pitch Predictor Sim repo, so values match between apps */
 const SAMPLE_ARSENAL = {
   "4 Seam":  { velo: 96, vert:  19, horz:   8 },
   "Sinker":  { velo: 93, vert:   7, horz:  13 },

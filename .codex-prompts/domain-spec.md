@@ -6,7 +6,7 @@ Accuracy is the entire point. If a value is a real published/measured quantity, 
 
 # What is being built
 
-"PitchCall" — an iPad-first, in-game pitch-calling assistant used in the dugout between pitches. Single self-contained `index.html`, no backend, must work offline.
+"Pitch Predictor" — an iPad-first, in-game pitch-calling assistant used in the dugout between pitches. Single self-contained `index.html`, no backend, must work offline.
 
 Inputs the user can set on the tablet:
 - Batter handedness (Righty / Lefty)

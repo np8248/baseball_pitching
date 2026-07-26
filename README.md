@@ -227,7 +227,7 @@ Two numbers define a pitch's shape, both in **inches**:
 
 Hitters don't *react* to a pitch at contact - they **commit** ~175 ms after release, about 23.8 ft from the plate. The brain takes release height, arm angle, spin direction, and early trajectory, builds a prediction of where the ball will cross the plate and *when*, and launches the swing to intersect that prediction. The hitter is locked in before the ball is halfway home. Pitchers win when the ball ends up somewhere different than the prediction.
 
-This is the foundation of the PitchCall timing input (Early / Late / On Time / Unknown). Timing tells you *what kind of prediction error the hitter just made*, which tells you what to exploit next.
+This is the foundation of the Pitch Predictor timing input (Early / Late / On Time / Unknown). Timing tells you *what kind of prediction error the hitter just made*, which tells you what to exploit next.
 
 ### What each timing signal means
 
@@ -352,7 +352,7 @@ The Shadow region (just off the edges) is where:
 - **Swing-and-miss rate** peaks - hitters swing at Shadow pitches they can't square up.
 - **Run value of a take vs. a swing** is most volatile - a take can be a ball or a called strike; a swing is usually weak contact or a whiff.
 
-This is why the PitchCall 5x5 grid uses an inner 3x3 (Heart/STRIKE-eligible) and an outer ring (Shadow/CHASE-eligible). Chase pitches should *start* in the zone and *finish* out of it (a sweeper that begins on the corner and exits off the plate), not start already off (that's a waste pitch a hitter simply takes).
+This is why the Pitch Predictor 5x5 grid uses an inner 3x3 (Heart/STRIKE-eligible) and an outer ring (Shadow/CHASE-eligible). Chase pitches should *start* in the zone and *finish* out of it (a sweeper that begins on the corner and exits off the plate), not start already off (that's a waste pitch a hitter simply takes).
 
 ### Named locations (RHH perspective; mirror for LHH)
 
@@ -542,7 +542,7 @@ Three composite models (popularized by FanGraphs / Baseball Prospectus) grade th
 
 **How to use them:** Stuff+ tells you a pitcher's ceiling (can the pitch miss bats?). Location+ tells you if he can actually deploy it. A pitcher with 120 Stuff+ and 90 Location+ has elite raw stuff but leaks damage because he can't locate. A pitcher with 100 Stuff+ and 115 Location+ is a crafty command artist who overperforms his raw grade. Pitching+ is the blend - the best single number for "how good is this pitch, overall."
 
-For PitchCall's purposes: a pitcher's Stuff+ by pitch type tells you *which of his pitches to trust in high-leverage counts*. If his sweeper grades 120 and his curve grades 95, the put-away pitch in a 1-2 count is the sweeper, full stop.
+For Pitch Predictor's purposes: a pitcher's Stuff+ by pitch type tells you *which of his pitches to trust in high-leverage counts*. If his sweeper grades 120 and his curve grades 95, the put-away pitch in a 1-2 count is the sweeper, full stop.
 
 ---
 
