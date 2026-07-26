@@ -227,16 +227,29 @@
   .badge.demo { background: #fff4e0; color: var(--chase); border: 1px solid #f4d9a8; }
   .rec-list { display: flex; flex-direction: column; gap: 8px; }
   .rec {
-    display: grid; grid-template-columns: 34px minmax(96px, 2fr) 3fr auto; align-items: center; gap: 12px;
+    display: grid; grid-template-columns: 34px minmax(96px, 2fr) 3fr auto auto; align-items: center; gap: 12px;
     background: var(--panel-2); border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px;
+    cursor: pointer; transition: border-color .12s, box-shadow .12s;
   }
+  .rec:hover { border-color: #b8c5d6; }
+  .rec.open { border-color: var(--accent); box-shadow: 0 2px 12px rgba(29,78,216,.1); }
   .rec .rank { width: 26px; height: 26px; border-radius: 50%; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--dim); background: var(--panel); }
   .rec.top .rank { border-color: var(--accent); color: var(--accent); background: var(--accent-soft); }
   .rec .type { font-size: 17px; font-weight: 800; }
   .rec .loc { color: var(--ink); font-size: 15px; }
+  .rec .why { font-size: 10px; color: var(--dim); font-weight: 700; letter-spacing: .5px; opacity: 0; transition: opacity .12s; }
+  .rec:hover .why { opacity: 1; }
+  .rec.open .why { opacity: 1; color: var(--accent); }
   .tag { font-size: 11px; letter-spacing: 1.1px; font-weight: 800; padding: 5px 12px; border-radius: 999px; }
   .tag.strike { background: var(--accent-soft); color: var(--accent); border: 1px solid #c7d4f7; }
   .tag.chase { background: #fff4e0; color: var(--chase); border: 1px solid #f4d9a8; }
+  .rec-detail { display: none; padding: 0 14px 14px 60px; }
+  .rec.open + .rec-detail { display: block; }
+  .rec-detail ul { margin: 0; padding-left: 18px; }
+  .rec-detail li { font-size: 12px; font-weight: 600; color: var(--ink); line-height: 1.7; list-style: disc; }
+  .rec-detail li .pos { color: var(--good); font-weight: 800; }
+  .rec-detail li .neg { color: var(--danger); font-weight: 800; }
+  .rec-detail .what { margin-top: 8px; font-size: 12px; font-weight: 700; color: var(--dim); line-height: 1.5; }
   .rec-empty { color: var(--dim); font-size: 13px; padding: 20px; text-align: center; border: 1px dashed var(--line); border-radius: 12px; background: var(--panel-2); }
   .badge.live { background: var(--accent-soft); color: var(--accent); border: 1px solid #c7d4f7; }
 
@@ -1282,43 +1295,46 @@ function scorePitch(pitch) {
   const timing = state.timing, lastType = state.lastPitchType;
 
   let score = 50;
+  const reasons = [];
 
   // --- 1. count leverage ---
   const isPitchersCount = (strikes > balls) && (strikes >= 2 || (strikes === 1 && balls === 0));
   const isHittersCount = balls > strikes || balls === 3;
   if (isPitchersCount) {
-    if (fam === "breaking" || fam === "offspeed") score += 8;
+    if (fam === "breaking" || fam === "offspeed") { score += 8; reasons.push("Pitcher's count (" + balls + "-" + strikes + ") - breaking/offspeed to put him away <span class='pos'>+8</span>"); }
   } else if (isHittersCount) {
-    score += fam === "fastball" ? 5 : 3;
+    if (fam === "fastball") { score += 5; reasons.push("Hitter's count (" + balls + "-" + strikes + ") - challenge with the fastball <span class='pos'>+5</span>"); }
+    else { score += 3; reasons.push("Hitter's count (" + balls + "-" + strikes + ") - offspeed to steal a strike <span class='pos'>+3</span>"); }
   }
 
   // --- 2. timing exploitation ---
   if (timing === "early") {
-    if (fam === "offspeed") score += 18;
-    else if (pitch === "Curve") score += 14;
-    else if (pitch === "4 Seam") score += 8;
-    else if (fam === "breaking") score += 4;
+    if (fam === "offspeed") { score += 18; reasons.push("Hitter was early - drop an offspeed on him <span class='pos'>+18</span>"); }
+    else if (pitch === "Curve") { score += 14; reasons.push("Hitter was early - curveball exploits it <span class='pos'>+14</span>"); }
+    else if (pitch === "4 Seam") { score += 8; reasons.push("Hitter was early - four-seam up <span class='pos'>+8</span>"); }
+    else if (fam === "breaking") { score += 4; reasons.push("Hitter was early - breaking ball <span class='pos'>+4</span>"); }
   } else if (timing === "late") {
-    if (pitch === "4 Seam") score += 18;
-    else if (pitch === "Cutter") score += 12;
-    else if (fam === "offspeed") score -= 8;
+    if (pitch === "4 Seam") { score += 18; reasons.push("Hitter was late - blow it by him <span class='pos'>+18</span>"); }
+    else if (pitch === "Cutter") { score += 12; reasons.push("Hitter was late - cutter jams the hands <span class='pos'>+12</span>"); }
+    else if (fam === "offspeed") { score -= 8; reasons.push("Hitter was late - offspeed is too slow <span class='neg'>-8</span>"); }
   } else if (timing === "ontime") {
     if (lastType) {
-      if (fam !== REF[lastType].fam) score += 14; else score -= 10;
+      if (fam !== REF[lastType].fam) { score += 14; reasons.push("Hitter was on time - change speed type to disrupt <span class='pos'>+14</span>"); }
+      else { score -= 10; reasons.push("Hitter was on time - same speed type is predictable <span class='neg'>-10</span>"); }
     }
-    score -= 4;
+    score -= 4; reasons.push("Hitter was on time - hard to beat <span class='neg'>-4</span>");
   }
 
   // --- 3. platoon logic ---
   const sameHand = ph === bh;
   if (sameHand) {
-    if (fam === "breaking") score += 10;
-    if (pitch === "Change") score -= 4;
+    if (fam === "breaking") { score += 10; reasons.push("Same-hand matchup - breaking ball dominates <span class='pos'>+10</span>"); }
+    if (pitch === "Change") { score -= 4; reasons.push("Same-hand matchup - changeup is less effective <span class='neg'>-4</span>"); }
   } else {
-    if (pitch === "Change") score += 10;
-    if (pitch === "Cutter") score += 8;
-    if (pitch === "Sinker") score += 6;
-    if (fam === "breaking" && pitch !== "Sweeper") score -= 3;
+    if (pitch === "Change") { score += 10; reasons.push("Platoon advantage - changeup exploits the gap <span class='pos'>+10</span>"); }
+    if (pitch === "Cutter") { score += 8; reasons.push("Platoon advantage - cutter jams him inside <span class='pos'>+8</span>"); }
+    if (pitch === "Sinker") { score += 6; reasons.push("Platoon advantage - sinker runs in on his hands <span class='pos'>+6</span>"); }
+    if (fam === "breaking" && pitch !== "Sweeper") { score -= 3; reasons.push("Platoon disadvantage - breaking ball runs into his barrel <span class='neg'>-3</span>"); }
   }
 
   // --- 4. tunneling / timing separation from the last pitch (physics) ---
@@ -1329,15 +1345,16 @@ function scorePitch(pitch) {
                         la.vert != null ? la.vert : lr.ivb,
                         la.horz != null ? la.horz : lr.horz);
     const tn = tunnel(fl, prev);
-    // reward break that arrives after he has already committed
-    score += clamp((tn.ratio - 1) * 4, 0, 10);
-    score += clamp(tn.sepPlate * 0.22, 0, 7);
-    // and reward the barrel being off in time, measured in inches of ball travel
-    score += clamp(timingError(fl, prev) * 0.10, 0, 8);
+    const tunnelPts = clamp((tn.ratio - 1) * 4, 0, 10);
+    const sepPts = clamp(tn.sepPlate * 0.22, 0, 7);
+    const timingPts = clamp(timingError(fl, prev) * 0.10, 0, 8);
+    score += tunnelPts + sepPts + timingPts;
+    if (tunnelPts > 0 || sepPts > 0) reasons.push("Tunnels off the " + lastType + " - " + Math.round(fl.lateBreak * 100) + "% of break arrives after he commits <span class='pos'>+" + Math.round(tunnelPts + sepPts) + "</span>");
+    if (timingPts > 0) reasons.push("Flight time differs by " + Math.abs(fl.t - prev.t).toFixed(3) + "s - " + Math.round(timingError(fl, prev)) + " in of ball travel during the gap <span class='pos'>+" + Math.round(timingPts) + "</span>");
   } else if (lastType === pitch) {
-    if (timing === "late" && pitch === "4 Seam") score += 6;
-    else if (timing === "early" && (fam === "breaking" || fam === "offspeed")) score -= 10;
-    else score -= 6;
+    if (timing === "late" && pitch === "4 Seam") { score += 6; reasons.push("Same pitch again but he was late - run it back <span class='pos'>+6</span>"); }
+    else if (timing === "early" && (fam === "breaking" || fam === "offspeed")) { score -= 10; reasons.push("Same pitch again and he was early - he'll sit on it <span class='neg'>-10</span>"); }
+    else { score -= 6; reasons.push("Same pitch back-to-back - predictable <span class='neg'>-6</span>"); }
   }
 
   // --- 5. recommended location ---
@@ -1361,23 +1378,19 @@ function scorePitch(pitch) {
   // sub-cell precision: place the dot at an exact spot, not just the cell center
   let x = col + 0.5, y = row + 0.5;
   if (isPitchersCount && intent === "chase") {
-    // push chase pitches further off the zone
     if (col <= 1) x = col + 0.25;
     if (col >= 3) x = col + 0.75;
     if (row <= 1) y = row + 0.25;
     if (row >= 3) y = row + 0.75;
   } else if (isHittersCount) {
-    // pull must-throw-strike pitches toward the catchable heart edge
     x = x + (2.5 - x) * 0.20;
     y = y + (2.5 - y) * 0.20;
   } else {
-    if (pitch === "4 Seam") y = Math.max(0.35, y - 0.15);            // live at the top
-    if (pitch === "Curve" || pitch === "Split" || pitch === "Change") y = Math.min(4.7, y + 0.15); // down/below
+    if (pitch === "4 Seam") y = Math.max(0.35, y - 0.15);
+    if (pitch === "Curve" || pitch === "Split" || pitch === "Change") y = Math.min(4.7, y + 0.15);
   }
 
   // --- 6. batter profile: avoid the hot zone, attack the cold zone ---
-  //     On the first pitch (0-0, no last pitch) this is the main signal, so it
-  //     carries more weight. The dot is also nudged off the hot zone.
   const batter = activeBatter();
   if (batter && batter.hot) {
     const hot = batter.hot;
@@ -1391,8 +1404,9 @@ function scorePitch(pitch) {
     const inHot = (zv === hot.v) && (hot.h === "mid" ? zh === "mid" : zh === hot.h);
     const inCold = (zv === cold.v) && (cold.h === "mid" ? zh === "mid" : zh === cold.h);
     if (inHot) {
+      const pts = Math.round(8 * mult);
       score -= 8 * mult;
-      // nudge the dot toward the cold zone center
+      reasons.push("Lands in " + (batter.name || "batter") + "'s hot zone (" + zoneLabel(hot.v, hot.h) + ") - avoid it" + (isFirstPitch ? " (first pitch, 1.6x)" : "") + " <span class='neg'>-" + pts + "</span>");
       const cy = cold.v === "high" ? 0.5 : cold.v === "low" ? 4.5 : 2.5;
       let cx = 2.5;
       if (bh === "R") cx = cold.h === "close" ? 4.0 : cold.h === "far" ? 1.0 : 2.5;
@@ -1400,7 +1414,9 @@ function scorePitch(pitch) {
       x = x + (cx - x) * 0.35;
       y = y + (cy - y) * 0.35;
     } else if (inCold) {
+      const pts = Math.round(5 * mult);
       score += 5 * mult;
+      reasons.push("Hits the cold zone (" + zoneLabel(cold.v, cold.h) + ") - attack there" + (isFirstPitch ? " (first pitch, 1.6x)" : "") + " <span class='pos'>+" + pts + "</span>");
     }
   }
 
@@ -1412,44 +1428,58 @@ function scorePitch(pitch) {
     const isFirst = (state.balls === 0 && state.strikes === 0);
 
     if (intent === "chase") {
-      if (n.chaseHigh && y < 2) score += 6;
-      if (n.chaseLow && y > 3) score += 6;
-      if (n.chaseAway && away) score += 6;
-      if (n.chaseIn && inside) score += 6;
+      if (n.chaseHigh && y < 2) { score += 6; reasons.push("Scouting: chases high - chase pitch up <span class='pos'>+6</span>"); }
+      if (n.chaseLow && y > 3) { score += 6; reasons.push("Scouting: chases low - chase pitch down <span class='pos'>+6</span>"); }
+      if (n.chaseAway && away) { score += 6; reasons.push("Scouting: chases away - chase off the plate <span class='pos'>+6</span>"); }
+      if (n.chaseIn && inside) { score += 6; reasons.push("Scouting: chases inside - chase in on his hands <span class='pos'>+6</span>"); }
     }
     if (n.lateVelo) {
-      if (fam === "fastball") score += pitch === "4 Seam" ? 12 : 9;
-      else if (fam === "offspeed") score -= 5;
+      if (fam === "fastball") { const pts = pitch === "4 Seam" ? 12 : 9; score += pts; reasons.push("Scouting: late on velo - power fastball <span class='pos'>+" + pts + "</span>"); }
+      else if (fam === "offspeed") { score -= 5; reasons.push("Scouting: late on velo - offspeed won't help <span class='neg'>-5</span>"); }
     }
     if (n.outFront) {
-      if (fam === "offspeed") score += 9;
-      else if (fam === "breaking") score += 5;
-      else score -= 4;
+      if (fam === "offspeed") { score += 9; reasons.push("Scouting: out front - offspeed freezes him <span class='pos'>+9</span>"); }
+      else if (fam === "breaking") { score += 5; reasons.push("Scouting: out front - breaking ball works <span class='pos'>+5</span>"); }
+      else { score -= 4; reasons.push("Scouting: out front - fastball plays into his timing <span class='neg'>-4</span>"); }
     }
-    if (n.sitsFastball) score += fam === "fastball" ? -7 : 7;
-    if (n.sitsSoft) score += fam === "fastball" ? 7 : -7;
-    if (n.weakBreaking && fam === "breaking") score += 8;
-    if (n.pullHappy) score += away ? 5 : inside ? -5 : 0;
-    if (isFirst && n.patient) score += intent === "strike" ? 6 : -5;
-    if (isFirst && n.firstSwing) score += intent === "chase" ? 6 : -3;
+    if (n.sitsFastball) { const pts = fam === "fastball" ? -7 : 7; score += pts; reasons.push("Scouting: sitting fastball - " + (fam === "fastball" ? "he'll be on it" : "surprise him") + " <span class='" + (pts > 0 ? "pos" : "neg") + "'>" + (pts > 0 ? "+" : "") + pts + "</span>"); }
+    if (n.sitsSoft) { const pts = fam === "fastball" ? 7 : -7; score += pts; reasons.push("Scouting: sitting soft - " + (fam === "fastball" ? "blow it by him" : "he'll be on it") + " <span class='" + (pts > 0 ? "pos" : "neg") + "'>" + (pts > 0 ? "+" : "") + pts + "</span>"); }
+    if (n.weakBreaking && fam === "breaking") { score += 8; reasons.push("Scouting: weak vs breaking - keep spinning it <span class='pos'>+8</span>"); }
+    if (n.pullHappy) { const pts = away ? 5 : inside ? -5 : 0; if (pts) { score += pts; reasons.push("Scouting: pull happy - " + (away ? "go away from his power" : "don't pitch him inside") + " <span class='" + (pts > 0 ? "pos" : "neg") + "'>" + (pts > 0 ? "+" : "") + pts + "</span>"); } }
+    if (isFirst && n.patient) { const pts = intent === "strike" ? 6 : -5; score += pts; reasons.push("Scouting: patient on 0-0 - " + (intent === "strike" ? "throw a first-pitch strike" : "don't waste it") + " <span class='" + (pts > 0 ? "pos" : "neg") + "'>" + (pts > 0 ? "+" : "") + pts + "</span>"); }
+    if (isFirst && n.firstSwing) { const pts = intent === "chase" ? 6 : -3; score += pts; reasons.push("Scouting: hacks at pitch 1 - " + (intent === "chase" ? "give him something to chase" : "don't give him a freebie") + " <span class='" + (pts > 0 ? "pos" : "neg") + "'>" + (pts > 0 ? "+" : "") + pts + "</span>"); }
   }
 
   // --- 7. approach angle and perceived velo fit for the chosen height ---
   const vaa = Math.abs(approachAngle(fl, gridHeight(y)));
-  if (y < 2) {                                   // working the upper third
-    score += clamp((5.5 - vaa) * 3, 0, 6);       // flat plane beats them up there
-    if (vaa > 8.5) score -= 4;                   // a steep pitch up is a mistake
-  } else if (y > 3) {                            // working down and below
-    score += clamp((vaa - 7) * 2, 0, 6);
-    if (vaa < 5.5) score -= 3;
+  if (y < 2) {
+    const pts = Math.round(clamp((5.5 - vaa) * 3, 0, 6));
+    if (pts > 0) { score += pts; reasons.push("Flat approach angle (" + vaa.toFixed(1) + "°) up top - hard for him to lift <span class='pos'>+" + pts + "</span>"); }
+    if (vaa > 8.5) { score -= 4; reasons.push("Steep angle up there is a mistake <span class='neg'>-4</span>"); }
+  } else if (y > 3) {
+    const pts = Math.round(clamp((vaa - 7) * 2, 0, 6));
+    if (pts > 0) { score += pts; reasons.push("Steep approach angle (" + vaa.toFixed(1) + "°) down low - drops under the barrel <span class='pos'>+" + pts + "</span>"); }
+    if (vaa < 5.5) { score -= 3; reasons.push("Flat angle down low is hittable <span class='neg'>-3</span>"); }
   }
-  if (fam === "fastball") score += clamp((fl.perceived - velo) * 1.2, -3, 4);  // extension
-  if (intent === "chase") score += clamp((0.44 - fl.t) * 18, -2, 4);           // less time to read it
+  if (fam === "fastball") {
+    const extPts = clamp((fl.perceived - velo) * 1.2, -3, 4);
+    score += extPts;
+    if (Math.abs(extPts) >= 1) reasons.push("Extension " + state.ext + " ft - plays like " + Math.round(fl.perceived) + " mph (perceived vs " + velo + ") <span class='" + (extPts > 0 ? "pos" : "neg") + "'>" + (extPts > 0 ? "+" : "") + Math.round(extPts) + "</span>");
+  }
+  if (intent === "chase") {
+    const timePts = clamp((0.44 - fl.t) * 18, -2, 4);
+    score += timePts;
+    if (timePts >= 1) reasons.push("Flight time " + fl.t.toFixed(3) + "s - less reaction time to read it <span class='pos'>+" + Math.round(timePts) + "</span>");
+  }
 
   x = clamp(x, 0.1, 4.9);
   y = clamp(y, 0.1, 4.9);
 
-  return { type: pitch, score: Math.round(score), col, row, x, y, intent, locationName: locName(col, row, bh) };
+  const whatItDoes = intent === "chase"
+    ? "Chase pitch - starts near the zone and breaks off it. He'll either swing through it or take it for a ball."
+    : "Strike pitch - in or on the edge of the zone. Designed to get a called strike or weak contact.";
+
+  return { type: pitch, score: Math.round(score), col, row, x, y, intent, locationName: locName(col, row, bh), reasons, whatItDoes };
 }
 
 function recommend() {
@@ -1486,10 +1516,30 @@ function renderRecs() {
     row.innerHTML =
       '<div class="rank">' + (i + 1) + "</div>" +
       '<div class="type"></div><div class="loc"></div>' +
-      '<span class="tag ' + (r.intent === "chase" ? "chase" : "strike") + '">' + (r.intent === "chase" ? "Chase" : "Strike") + "</span>";
+      '<span class="tag ' + (r.intent === "chase" ? "chase" : "strike") + '">' + (r.intent === "chase" ? "Chase" : "Strike") + "</span>" +
+      '<div class="why">why?</div>';
     row.querySelector(".type").textContent = r.type;
     row.querySelector(".loc").textContent = r.locationName;
+    row.addEventListener("click", () => {
+      const detail = row.nextElementSibling;
+      const isOpen = row.classList.contains("open");
+      // close all other open rows
+      [...recList.children].forEach(c => { c.classList.remove("open"); if (c.classList.contains("rec-detail")) c.style.display = "none"; });
+      if (!isOpen) {
+        row.classList.add("open");
+        if (detail && detail.classList.contains("rec-detail")) detail.style.display = "block";
+      }
+    });
     recList.appendChild(row);
+
+    // detail panel with reasoning
+    const detail = document.createElement("div");
+    detail.className = "rec-detail";
+    detail.style.display = "none";
+    const reasonItems = (r.reasons || []).map(why => "<li>" + why + "</li>").join("");
+    detail.innerHTML = "<ul>" + reasonItems + "</ul>" +
+      '<div class="what"><b>What it does:</b> ' + (r.whatItDoes || "") + "</div>";
+    recList.appendChild(detail);
   });
   
 }
