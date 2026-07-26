@@ -143,6 +143,28 @@
   .note-grid button { padding: 9px 8px; font-size: 11.5px; text-align: left; }
   .note-grid button.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
 
+  /* ---- saved batters ---- */
+  .cust-memo { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--panel-2); font: inherit; font-size: 12px; font-weight: 600; color: var(--ink);
+    resize: vertical; min-height: 60px; font-family: inherit; }
+  .cust-memo:focus { outline: none; border-color: var(--accent); background: #fff; }
+  .save-row { display: flex; gap: 8px; }
+  .save-row input { flex: 1; }
+  .save-btn { flex: 0 0 auto; padding: 10px 16px; font-size: 12px; font-weight: 800;
+    background: var(--good); color: #fff; border: 1px solid var(--good); border-radius: 10px; cursor: pointer; }
+  .save-btn:hover { opacity: .9; }
+  .saved-batters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .saved-chip { display: flex; align-items: center; gap: 6px; padding: 6px 8px 6px 12px;
+    border-radius: 999px; border: 1px solid var(--line); background: var(--panel-2);
+    font-size: 12px; font-weight: 700; color: var(--ink); cursor: pointer; }
+  .saved-chip:hover { border-color: var(--accent); }
+  .saved-chip.on { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .saved-chip .x { width: 16px; height: 16px; border-radius: 50%; background: rgba(0,0,0,.1);
+    display: flex; align-items: center; justify-content: center; font-size: 10px; font-weight: 800;
+    border: none; cursor: pointer; color: inherit; opacity: .6; }
+  .saved-chip .x:hover { opacity: 1; background: rgba(0,0,0,.2); }
+  .saved-chip.on .x { background: rgba(255,255,255,.25); }
+
   /* ---- result buttons ---- */
   .result-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
   .result-grid button { padding: 12px 6px; font-size: 13px; font-weight: 800; }
@@ -318,6 +340,16 @@
 
           <div class="cust-lbl">Scouting notes &middot; each one changes the math</div>
           <div class="note-grid" id="noteGrid"></div>
+
+          <div class="cust-lbl">Notes</div>
+          <textarea class="cust-memo" id="custMemo" placeholder="Free-text notes on this batter. Not scored, just for you." rows="3"></textarea>
+
+          <div class="cust-lbl">Save this batter for next time</div>
+          <div class="save-row">
+            <input class="text" type="text" id="saveName" placeholder="Batter name" autocomplete="off">
+            <button class="save-btn" id="saveBatterBtn">Save</button>
+          </div>
+          <div class="saved-batters" id="savedBatters"></div>
         </div>
       </section>
 
@@ -527,7 +559,7 @@ const BATTER_NOTES = [
 function blankCustom() {
   const notes = {};
   BATTER_NOTES.forEach(n => { notes[n.id] = false; });
-  return { name: "This Batter", hand: "R", arch: "Custom", hot: { v: "mid", h: "mid" }, notes };
+  return { name: "This Batter", hand: "R", arch: "Custom", hot: { v: "mid", h: "mid" }, notes, memo: "" };
 }
 function activeBatter() {
   if (state.batterIdx === CUSTOM_IDX) return state.custom;
@@ -566,6 +598,7 @@ const state = {
   ext: 6.0,                 // release extension in ft toward the plate
   relH: 6.0,                // release height in ft
   custom: null,             // blank per-batter profile, cleared on New At-Bat
+  savedBatters: [],          // user-saved batter profiles, persist across sessions
   recommendations: []
 };
 
@@ -578,7 +611,8 @@ function save() {
     localStorage.setItem(STORE_KEY, JSON.stringify({
       averages: state.averages, pitcherHand: state.pitcherHand, batterHand: state.batterHand,
       pitcherName: state.pitcherName, batterIdx: state.batterIdx,
-      mound: state.mound, ext: state.ext, relH: state.relH
+      mound: state.mound, ext: state.ext, relH: state.relH,
+      savedBatters: state.savedBatters
     }));
   } catch (e) { /* private browsing */ }
 }
@@ -595,6 +629,7 @@ function load() {
     if (typeof d.mound === "number" && d.mound >= 30 && d.mound <= 70) state.mound = d.mound;
     if (typeof d.ext === "number" && d.ext >= 2 && d.ext <= 9) state.ext = d.ext;
     if (typeof d.relH === "number" && d.relH >= 2 && d.relH <= 9) state.relH = d.relH;
+    if (Array.isArray(d.savedBatters)) state.savedBatters = d.savedBatters;
   } catch (e) { /* corrupt */ }
 }
 
@@ -747,6 +782,77 @@ custHand.addEventListener("click", e => {
   renderBatterHand();
   renderBatterInfo();
 });
+
+/* ---------------- saved batters ---------------- */
+const custMemo = document.getElementById("custMemo");
+const saveNameInput = document.getElementById("saveName");
+const saveBatterBtn = document.getElementById("saveBatterBtn");
+const savedBattersEl = document.getElementById("savedBatters");
+
+custMemo.addEventListener("input", () => {
+  if (!state.custom) state.custom = blankCustom();
+  state.custom.memo = custMemo.value;
+});
+
+saveBatterBtn.addEventListener("click", () => {
+  if (!state.custom) state.custom = blankCustom();
+  const name = saveNameInput.value.trim();
+  if (!name) { saveNameInput.focus(); return; }
+  // overwrite if same name exists, otherwise add
+  const existing = state.savedBatters.findIndex(b => b.name.toLowerCase() === name.toLowerCase());
+  const profile = {
+    name,
+    hand: state.custom.hand,
+    arch: "Custom",
+    hot: Object.assign({}, state.custom.hot),
+    notes: Object.assign({}, state.custom.notes),
+    memo: state.custom.memo || ""
+  };
+  if (existing >= 0) state.savedBatters[existing] = profile;
+  else state.savedBatters.push(profile);
+  save();
+  renderSavedBatters();
+  saveNameInput.value = "";
+});
+
+function loadSavedBatter(idx) {
+  const s = state.savedBatters[idx];
+  if (!s) return;
+  state.custom = {
+    name: s.name, hand: s.hand, arch: "Custom",
+    hot: Object.assign({}, s.hot),
+    notes: Object.assign({}, BATTER_NOTES.reduce((o, n) => { o[n.id] = !!s.notes[n.id]; return o; }, {})),
+    memo: s.memo || ""
+  };
+  state.batterHand = s.hand;
+  state.batterIdx = CUSTOM_IDX;
+  renderCustomBox();
+  renderBatterHand();
+  renderBatterInfo();
+}
+
+function renderSavedBatters() {
+  savedBattersEl.innerHTML = "";
+  state.savedBatters.forEach((s, i) => {
+    const chip = document.createElement("div");
+    chip.className = "saved-chip";
+    if (state.custom && state.custom.name === s.name) chip.classList.add("on");
+    chip.innerHTML = '<span class="nm"></span><button class="x" title="Delete">&times;</button>';
+    chip.querySelector(".nm").textContent = s.name;
+    chip.addEventListener("click", e => {
+      if (e.target.classList.contains("x")) return;
+      loadSavedBatter(i);
+    });
+    chip.querySelector(".x").addEventListener("click", e => {
+      e.stopPropagation();
+      state.savedBatters.splice(i, 1);
+      save();
+      renderSavedBatters();
+    });
+    savedBattersEl.appendChild(chip);
+  });
+}
+
 function renderCustomBox() {
   customBox.hidden = state.batterIdx !== CUSTOM_IDX;
   if (state.batterIdx !== CUSTOM_IDX) return;
@@ -755,6 +861,9 @@ function renderCustomBox() {
   [...custHand.children].forEach(b => b.classList.toggle("on", b.dataset.hand === c.hand));
   [...hotPicker.children].forEach(b => b.classList.toggle("on", b.dataset.v === c.hot.v && b.dataset.h === c.hot.h));
   [...noteGrid.children].forEach(b => b.classList.toggle("on", !!c.notes[b.dataset.note]));
+  custMemo.value = c.memo || "";
+  saveNameInput.value = c.name && c.name !== "This Batter" ? c.name : "";
+  renderSavedBatters();
 }
 
 function renderBatterInfo() {
