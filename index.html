@@ -349,6 +349,7 @@
       <button class="ghost" id="openTutorial">How to Use</button>
       <button class="gear-btn" id="openSettings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>Pitcher Settings</button>
       <button class="ghost" id="loadSample">Load Sample Pitcher</button>
+      <button class="ghost" id="loadSample2">Load Noah Copley</button>
       <button class="ghost" id="newAtBat">New At-Bat</button>
       <button class="warn" id="fullReset">Full Reset</button>
     </div>
@@ -1396,6 +1397,33 @@ document.getElementById("loadSample").addEventListener("click", () => {
   pitcherNameInput.value = state.pitcherName;
   updatePitcherCard();
   renderPitchTypes();
+  save();
+});
+
+/* second sample: Noah Copley - lefty, 78 mph fastball, 67 mph curve, 70 mph change */
+const SAMPLE_ARSENAL_2 = {
+  "4 Seam":  { velo: 78, vert: null, horz: null },
+  "Sinker":  { velo: 78, vert: null, horz: null },
+  "Cutter":  { velo: null, vert: null, horz: null },
+  "Gyro":    { velo: null, vert: null, horz: null },
+  "Sweeper": { velo: null, vert: null, horz: null },
+  "Curve":   { velo: 67, vert: null, horz: null },
+  "Split":   { velo: null, vert: null, horz: null },
+  "Change":  { velo: 70, vert: null, horz: null }
+};
+document.getElementById("loadSample2").addEventListener("click", () => {
+  PITCH_TYPES.forEach(p => { state.averages[p] = Object.assign({}, SAMPLE_ARSENAL_2[p]); });
+  state.pitcherName = "Noah Copley";
+  state.pitcherHand = "L";
+  state.mound = 60.5;
+  state.ext = 6.0;
+  state.relH = 6.0;
+  buildTable();
+  pitcherNameInput.value = state.pitcherName;
+  [...pitchHand.children].forEach(x => x.classList.toggle("on", x.dataset.hand === state.pitcherHand));
+  updatePitcherCard();
+  renderPitchTypes();
+  renderPhys();
   save();
 });
 
