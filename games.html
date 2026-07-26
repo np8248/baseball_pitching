@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#eef2f6">
+<title>Saved Games - Pitch Predictor</title>
+<link rel="stylesheet" href="lib.css">
+<style>
+  .result-tag { font-size: 10px; letter-spacing: .5px; text-transform: uppercase; font-weight: 800;
+    padding: 3px 8px; border-radius: 999px; display: inline-block; }
+  .result-tag.win { background: #ecfdf5; color: var(--good); }
+  .result-tag.loss { background: #fff1f2; color: var(--danger); }
+  .result-tag.progress { background: var(--accent-soft); color: var(--accent); }
+  textarea.text { min-height: 70px; resize: vertical; font-family: inherit; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <a class="back" href="home.html">&larr; Home</a>
+    <div class="title">Saved <b>Games</b></div>
+  </div>
+
+  <div class="panel">
+    <div class="hint" style="margin-bottom:14px;">A log of games you've played - who you pitched, who you faced, how it went.</div>
+
+    <div class="field">
+      <label for="gLabel">Label</label>
+      <input class="text" type="text" id="gLabel" placeholder="e.g. vs Eastside, Sat 10am" autocomplete="off">
+    </div>
+
+    <div class="field">
+      <label for="gPitcher">Pitcher</label>
+      <input class="text" type="text" id="gPitcher" placeholder="Pitcher name" autocomplete="off" list="pitcherNames">
+      <datalist id="pitcherNames"></datalist>
+    </div>
+
+    <div class="field">
+      <label for="gOpponent">Opponent</label>
+      <input class="text" type="text" id="gOpponent" placeholder="Team or batter faced" autocomplete="off">
+    </div>
+
+    <div class="field">
+      <label>Result</label>
+      <div class="chip-pick" id="gResult">
+        <button data-r="progress" class="on">In Progress</button>
+        <button data-r="win">Win</button>
+        <button data-r="loss">Loss</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label for="gNotes">Notes</label>
+      <textarea class="text" id="gNotes" placeholder="What worked, what to remember for next time..."></textarea>
+    </div>
+
+    <div style="display:flex; gap:8px;">
+      <button class="btn primary" id="saveBtn">Save Game</button>
+      <button class="btn ghost" id="cancelBtn" hidden>Cancel Edit</button>
+    </div>
+  </div>
+
+  <div id="list" style="margin-top:14px;"></div>
+</div>
+
+<script src="store.js"></script>
+<script>
+"use strict";
+const labelInput = document.getElementById("gLabel");
+const pitcherInput = document.getElementById("gPitcher");
+const opponentInput = document.getElementById("gOpponent");
+const resultSeg = document.getElementById("gResult");
+const notesInput = document.getElementById("gNotes");
+const saveBtn = document.getElementById("saveBtn");
+const cancelBtn = document.getElementById("cancelBtn");
+const listEl = document.getElementById("list");
+const pitcherNamesEl = document.getElementById("pitcherNames");
+
+let editingId = null;
+
+pitcherNamesEl.innerHTML = Store.pitchers.list().map(p => '<option value="' + p.name + '">').join("");
+
+resultSeg.addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  [...resultSeg.children].forEach(x => x.classList.toggle("on", x === b));
+});
+
+function resetForm() {
+  editingId = null;
+  labelInput.value = "";
+  pitcherInput.value = "";
+  opponentInput.value = "";
+  notesInput.value = "";
+  [...resultSeg.children].forEach(x => x.classList.toggle("on", x.dataset.r === "progress"));
+  saveBtn.textContent = "Save Game";
+  cancelBtn.hidden = true;
+}
+
+function startEdit(g) {
+  editingId = g.id;
+  labelInput.value = g.label || "";
+  pitcherInput.value = g.pitcher || "";
+  opponentInput.value = g.opponent || "";
+  notesInput.value = g.notes || "";
+  [...resultSeg.children].forEach(x => x.classList.toggle("on", x.dataset.r === (g.result || "progress")));
+  saveBtn.textContent = "Update Game";
+  cancelBtn.hidden = false;
+  labelInput.focus();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+cancelBtn.addEventListener("click", resetForm);
+
+saveBtn.addEventListener("click", () => {
+  const label = labelInput.value.trim();
+  if (!label) { labelInput.focus(); return; }
+  Store.games.save({
+    id: editingId || Store.uid(),
+    label,
+    pitcher: pitcherInput.value.trim(),
+    opponent: opponentInput.value.trim(),
+    result: resultSeg.querySelector("button.on").dataset.r,
+    notes: notesInput.value.trim(),
+    savedAt: Date.now()
+  });
+  resetForm();
+  render();
+});
+
+function formatDate(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " " +
+    d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+const RESULT_LABEL = { win: "Win", loss: "Loss", progress: "In Progress" };
+
+function render() {
+  const games = Store.games.list();
+  if (!games.length) {
+    listEl.innerHTML = '<div class="empty">No saved games yet - use the form above to log one.</div>';
+    return;
+  }
+  listEl.innerHTML = "";
+  games.forEach(g => {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML =
+      '<div class="info">' +
+        '<div class="name"></div>' +
+        '<div class="meta"></div>' +
+      '</div>' +
+      '<div class="actions">' +
+        '<button class="btn" data-edit="' + g.id + '">Edit</button>' +
+        '<button class="btn warn" data-del="' + g.id + '">Delete</button>' +
+      '</div>';
+    card.querySelector(".name").innerHTML = (g.label || "Untitled Game") +
+      ' <span class="result-tag ' + (g.result || "progress") + '">' + RESULT_LABEL[g.result || "progress"] + '</span>';
+    const bits = [];
+    if (g.pitcher) bits.push("Pitcher: " + g.pitcher);
+    if (g.opponent) bits.push("vs " + g.opponent);
+    bits.push("saved " + formatDate(g.savedAt));
+    card.querySelector(".meta").textContent = bits.join(" · ") + (g.notes ? " · \"" + g.notes.slice(0, 60) + (g.notes.length > 60 ? "..." : "") + "\"" : "");
+    listEl.appendChild(card);
+  });
+  listEl.querySelectorAll("[data-edit]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const g = Store.games.get(btn.dataset.edit);
+      if (g) startEdit(g);
+    });
+  });
+  listEl.querySelectorAll("[data-del]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      Store.games.remove(btn.dataset.del);
+      if (editingId === btn.dataset.del) resetForm();
+      render();
+    });
+  });
+}
+render();
+</script>
+</body>
+</html>

@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#eef2f6">
+<title>Records - Pitch Predictor</title>
+<link rel="stylesheet" href="lib.css">
+<style>
+  .result-tag { font-size: 10px; letter-spacing: .5px; text-transform: uppercase; font-weight: 800;
+    padding: 3px 8px; border-radius: 999px; display: inline-block; }
+  .result-tag.strike, .result-tag.whiff { background: #fff1f2; color: var(--danger); }
+  .result-tag.ball { background: var(--accent-soft); color: var(--accent); }
+  .result-tag.foul { background: #fffbeb; color: #b45309; }
+  .result-tag.out { background: #fef2f2; color: #7f1d1d; }
+  .result-tag.hit { background: #ecfdf5; color: var(--good); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <a class="back" href="home.html">&larr; Home</a>
+    <div class="title">Records</div>
+    <div class="bar-actions">
+      <button class="btn warn" id="clearBtn">Clear Records</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="hint" style="margin-bottom:14px;">Log a pitch result by hand to build up your records over time.</div>
+    <div class="field">
+      <label for="rPitcher">Pitcher</label>
+      <input class="text" type="text" id="rPitcher" placeholder="Pitcher name" autocomplete="off" list="pitcherNames">
+      <datalist id="pitcherNames"></datalist>
+    </div>
+    <div class="field">
+      <label for="rBatter">Batter</label>
+      <input class="text" type="text" id="rBatter" placeholder="Batter faced" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Pitch Type</label>
+      <div class="chip-pick" id="rPitchType"></div>
+    </div>
+    <div class="field">
+      <label>Result</label>
+      <div class="chip-pick" id="rResult">
+        <button data-r="strike">Strike</button>
+        <button data-r="ball">Ball</button>
+        <button data-r="foul">Foul</button>
+        <button data-r="whiff">Whiff</button>
+        <button data-r="out">Out</button>
+        <button data-r="hit">Hit</button>
+      </div>
+    </div>
+    <button class="btn primary" id="addBtn">Add Pitch</button>
+  </div>
+
+  <div id="body" style="margin-top:14px;"></div>
+</div>
+
+<script src="store.js"></script>
+<script>
+"use strict";
+const PITCH_TYPES = ["4 Seam", "Sinker", "Cutter", "Gyro", "Sweeper", "Curve", "Split", "Change"];
+const bodyEl = document.getElementById("body");
+const pitcherInput = document.getElementById("rPitcher");
+const batterInput = document.getElementById("rBatter");
+const pitchTypeSeg = document.getElementById("rPitchType");
+const resultSeg = document.getElementById("rResult");
+const addBtn = document.getElementById("addBtn");
+const pitcherNamesEl = document.getElementById("pitcherNames");
+
+pitcherNamesEl.innerHTML = Store.pitchers.list().map(p => '<option value="' + p.name + '">').join("");
+
+PITCH_TYPES.forEach((t, i) => {
+  const btn = document.createElement("button");
+  btn.textContent = t;
+  btn.dataset.t = t;
+  if (i === 0) btn.classList.add("on");
+  pitchTypeSeg.appendChild(btn);
+});
+pitchTypeSeg.addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  [...pitchTypeSeg.children].forEach(x => x.classList.toggle("on", x === b));
+});
+let selectedResult = null;
+resultSeg.addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  selectedResult = b.dataset.r;
+  [...resultSeg.children].forEach(x => x.classList.toggle("on", x === b));
+});
+
+addBtn.addEventListener("click", () => {
+  if (!selectedResult) { resultSeg.querySelector("button").focus(); return; }
+  Store.records.save({
+    id: Store.uid(),
+    ts: Date.now(),
+    pitcherName: pitcherInput.value.trim() || "Unnamed Pitcher",
+    batterName: batterInput.value.trim() || "Unknown",
+    pitchType: pitchTypeSeg.querySelector("button.on").dataset.t,
+    intent: null,
+    locationName: null,
+    result: selectedResult
+  });
+  batterInput.value = "";
+  selectedResult = null;
+  [...resultSeg.children].forEach(x => x.classList.remove("on"));
+  render();
+});
+
+function formatDate(ts) {
+  const d = new Date(ts);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " " +
+    d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+function render() {
+  const records = Store.records.list();
+  if (!records.length) {
+    bodyEl.innerHTML = '<div class="panel"><div class="hint">No pitches logged yet - use the form above to add one.</div></div>';
+    return;
+  }
+
+  const swingResults = ["whiff", "foul", "out", "hit"];
+  const swings = records.filter(r => swingResults.includes(r.result)).length;
+  const whiffs = records.filter(r => r.result === "whiff").length;
+  const outs = records.filter(r => r.result === "out").length;
+  const hits = records.filter(r => r.result === "hit").length;
+
+  const stats = [
+    { num: records.length, lbl: "Pitches Logged" },
+    { num: swings ? Math.round(whiffs / swings * 100) + "%" : "-", lbl: "Whiff Rate" },
+    { num: outs, lbl: "Outs" },
+    { num: hits, lbl: "Hits Allowed" }
+  ];
+
+  // aggregate by pitch type
+  const byType = {};
+  records.forEach(r => {
+    const t = r.pitchType || "Unknown";
+    if (!byType[t]) byType[t] = { thrown: 0, strike: 0, ball: 0, foul: 0, whiff: 0, out: 0, hit: 0 };
+    byType[t].thrown++;
+    if (byType[t][r.result] != null) byType[t][r.result]++;
+  });
+  const typeRows = Object.keys(byType).sort((a, b) => byType[b].thrown - byType[a].thrown).map(t => {
+    const c = byType[t];
+    return "<tr><td>" + t + "</td><td>" + c.thrown + "</td><td>" + c.strike + "</td><td>" + c.ball + "</td>" +
+      "<td>" + c.foul + "</td><td>" + c.whiff + "</td><td>" + c.out + "</td><td>" + c.hit + "</td></tr>";
+  }).join("");
+
+  const recentRows = records.slice(0, 50).map(r => {
+    return "<tr><td>" + formatDate(r.ts) + "</td><td>" + (r.pitcherName || "-") + "</td>" +
+      "<td>" + (r.batterName || "-") + "</td><td>" + (r.pitchType || "-") + "</td>" +
+      '<td><span class="result-tag ' + r.result + '">' + r.result + "</span></td>" +
+      '<td><button class="btn warn" data-del="' + r.id + '" style="padding:6px 10px; font-size:11px;">Delete</button></td></tr>';
+  }).join("");
+
+  bodyEl.innerHTML =
+    '<div class="stat-row">' + stats.map(s => '<div class="stat"><div class="num">' + s.num + '</div><div class="lbl">' + s.lbl + '</div></div>').join("") + '</div>' +
+    '<div class="panel">' +
+      '<div style="font-size:12px; letter-spacing:1px; text-transform:uppercase; font-weight:800; color:var(--dim); margin-bottom:10px;">By Pitch Type</div>' +
+      '<div style="overflow-x:auto;"><table class="recs"><thead><tr><th>Pitch</th><th>Thrown</th><th>Strike</th><th>Ball</th><th>Foul</th><th>Whiff</th><th>Out</th><th>Hit</th></tr></thead>' +
+      '<tbody>' + typeRows + '</tbody></table></div>' +
+    '</div>' +
+    '<div class="panel" style="margin-top:12px;">' +
+      '<div style="font-size:12px; letter-spacing:1px; text-transform:uppercase; font-weight:800; color:var(--dim); margin-bottom:10px;">Recent Pitches</div>' +
+      '<div style="overflow-x:auto;"><table class="recs"><thead><tr><th>When</th><th>Pitcher</th><th>Batter</th><th>Pitch</th><th>Result</th><th></th></tr></thead>' +
+      '<tbody>' + recentRows + '</tbody></table></div>' +
+    '</div>';
+
+  bodyEl.querySelectorAll("[data-del]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      Store.records.remove(btn.dataset.del);
+      render();
+    });
+  });
+}
+
+document.getElementById("clearBtn").addEventListener("click", () => {
+  Store.records.clear();
+  render();
+});
+
+render();
+</script>
+</body>
+</html>

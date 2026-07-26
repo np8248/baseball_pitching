@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#eef2f6">
+<title>Save Teams - Pitch Predictor</title>
+<link rel="stylesheet" href="lib.css">
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <a class="back" href="home.html">&larr; Home</a>
+    <div class="title">Save <b>Teams</b></div>
+  </div>
+
+  <div class="panel" id="createPanel">
+    <div class="field">
+      <label for="teamName">Team name</label>
+      <input class="text" type="text" id="teamName" placeholder="e.g. Eastside Little League" autocomplete="off">
+    </div>
+    <div class="field">
+      <label>Pitchers on this team</label>
+      <div class="chip-pick" id="pitcherPicker"></div>
+    </div>
+    <button class="btn primary" id="createTeam">Create Team</button>
+  </div>
+
+  <div id="list" style="margin-top:14px;"></div>
+</div>
+
+<script src="store.js"></script>
+<script>
+"use strict";
+const nameInput = document.getElementById("teamName");
+const pickerEl = document.getElementById("pitcherPicker");
+const listEl = document.getElementById("list");
+const selected = new Set();
+
+function renderPicker() {
+  const pitchers = Store.pitchers.list();
+  if (!pitchers.length) {
+    pickerEl.innerHTML = '<div class="hint">No saved pitchers yet - <a href="pitchers.html">save one first</a>, then come back to build a team.</div>';
+    return;
+  }
+  pickerEl.innerHTML = "";
+  pitchers.forEach(p => {
+    const btn = document.createElement("button");
+    btn.textContent = p.name || "Unnamed Pitcher";
+    btn.dataset.id = p.id;
+    btn.classList.toggle("on", selected.has(p.id));
+    btn.addEventListener("click", () => {
+      if (selected.has(p.id)) selected.delete(p.id); else selected.add(p.id);
+      btn.classList.toggle("on", selected.has(p.id));
+    });
+    pickerEl.appendChild(btn);
+  });
+}
+
+document.getElementById("createTeam").addEventListener("click", () => {
+  const name = nameInput.value.trim();
+  if (!name) { nameInput.focus(); return; }
+  Store.teams.save({ id: Store.uid(), name, pitcherIds: [...selected], savedAt: Date.now() });
+  nameInput.value = "";
+  selected.clear();
+  renderPicker();
+  renderTeams();
+});
+
+function formatDate(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" });
+}
+
+function renderTeams() {
+  const teams = Store.teams.list();
+  const pitchersById = {};
+  Store.pitchers.list().forEach(p => { pitchersById[p.id] = p; });
+
+  if (!teams.length) {
+    listEl.innerHTML = '<div class="empty">No saved teams yet.</div>';
+    return;
+  }
+  listEl.innerHTML = "";
+  teams.forEach(team => {
+    const card = document.createElement("div");
+    card.className = "panel";
+    const roster = (team.pitcherIds || []).map(id => pitchersById[id]).filter(Boolean);
+    const rosterHtml = roster.length
+      ? roster.map(p => '<span class="btn ghost">' + (p.name || "Unnamed Pitcher") +
+          ' <span class="hint">(' + (p.hand === "L" ? "L" : "R") + 'HP)</span></span>').join(" ")
+      : '<span class="hint">No pitchers on this team yet.</span>';
+    card.innerHTML =
+      '<div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">' +
+        '<div class="name" style="font-size:16px; font-weight:800;"></div>' +
+        '<div class="hint" style="margin-left:auto;"></div>' +
+        '<button class="btn warn" data-del="' + team.id + '">Delete</button>' +
+      '</div>' +
+      '<div class="chip-pick">' + rosterHtml + '</div>';
+    card.querySelector(".name").textContent = team.name;
+    card.querySelector(".hint").textContent = roster.length + (roster.length === 1 ? " pitcher" : " pitchers") +
+      (team.savedAt ? " · saved " + formatDate(team.savedAt) : "");
+    listEl.appendChild(card);
+  });
+  listEl.querySelectorAll("[data-del]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      Store.teams.remove(btn.dataset.del);
+      renderTeams();
+    });
+  });
+}
+
+renderPicker();
+renderTeams();
+</script>
+</body>
+</html>

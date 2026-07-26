@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#eef2f6">
+<title>Save Pitchers - Pitch Predictor</title>
+<link rel="stylesheet" href="lib.css">
+<style>
+  .avg-table { width: 100%; border-collapse: separate; border-spacing: 0 6px; margin-top: 4px; }
+  .avg-table th { font-size: 10px; letter-spacing: 1px; color: var(--dim); text-transform: uppercase; text-align: center; font-weight: 800; padding-bottom: 4px; }
+  .avg-table th:first-child { text-align: left; padding-left: 10px; }
+  .avg-table td { background: var(--panel-2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); text-align: center; padding: 0; }
+  .avg-table td:first-child { border-left: 1px solid var(--line); border-radius: 10px 0 0 10px; text-align: left; padding-left: 12px; font-size: 13px; font-weight: 700; }
+  .avg-table td:last-child { border-right: 1px solid var(--line); border-radius: 0 10px 10px 0; }
+  .avg-table input { width: 100%; background: none; border: none; color: var(--ink); font: inherit; text-align: center; padding: 10px 4px; font-size: 14px; font-weight: 700; }
+  .avg-table input:focus { outline: none; background: var(--accent-soft); }
+  .avg-table input::placeholder { color: #b8c5d6; }
+  .num-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="bar">
+    <a class="back" href="home.html">&larr; Home</a>
+    <div class="title">Save <b>Pitchers</b></div>
+  </div>
+
+  <div class="panel">
+    <div class="hint" style="margin-bottom:14px;">A library of pitcher arsenals - a cheat sheet you keep here and read from when you set a pitcher up in a game.</div>
+
+    <div class="field">
+      <label for="pName">Pitcher name</label>
+      <input class="text" type="text" id="pName" placeholder="e.g. John Doe" autocomplete="off">
+    </div>
+
+    <div class="field">
+      <label>Handedness</label>
+      <div class="chip-pick" id="pHand">
+        <button data-hand="L">Left</button>
+        <button data-hand="R" class="on">Right</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Mound Distance &middot; ft</label>
+      <div class="chip-pick" id="pMound">
+        <button data-d="46">46</button>
+        <button data-d="50">50</button>
+        <button data-d="54">54</button>
+        <button data-d="60.5" class="on">60.5</button>
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Release Geometry &middot; ft</label>
+      <div class="num-row">
+        <input class="text" type="number" id="pExt" min="3" max="8" step="0.1" value="6.0" placeholder="Extension">
+        <input class="text" type="number" id="pRelH" min="3" max="8" step="0.1" value="6.0" placeholder="Release Height">
+      </div>
+    </div>
+
+    <div class="field">
+      <label>Average Movements</label>
+      <table class="avg-table">
+        <thead><tr><th>Pitch</th><th>Velo</th><th>Vert</th><th>Horz</th></tr></thead>
+        <tbody id="avgBody"></tbody>
+      </table>
+    </div>
+
+    <div style="display:flex; gap:8px;">
+      <button class="btn primary" id="saveBtn">Save Pitcher</button>
+      <button class="btn ghost" id="cancelBtn" hidden>Cancel Edit</button>
+    </div>
+  </div>
+
+  <div id="list" style="margin-top:14px;"></div>
+</div>
+
+<script src="store.js"></script>
+<script>
+"use strict";
+const PITCH_TYPES = ["4 Seam", "Sinker", "Cutter", "Gyro", "Sweeper", "Curve", "Split", "Change"];
+const listEl = document.getElementById("list");
+const nameInput = document.getElementById("pName");
+const handSeg = document.getElementById("pHand");
+const moundSeg = document.getElementById("pMound");
+const extInput = document.getElementById("pExt");
+const relHInput = document.getElementById("pRelH");
+const avgBody = document.getElementById("avgBody");
+const saveBtn = document.getElementById("saveBtn");
+const cancelBtn = document.getElementById("cancelBtn");
+
+let editingId = null;
+let averages = {};
+PITCH_TYPES.forEach(p => { averages[p] = { velo: null, vert: null, horz: null }; });
+
+function parseField(str) {
+  const s = String(str).trim().replace(/^\+/, "");
+  if (s === "" || s === "-") return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+function formatField(v, field) {
+  if (v == null) return "";
+  if (field === "velo") return String(v);
+  return (v > 0 ? "+" : "") + v;
+}
+
+function buildTable() {
+  avgBody.innerHTML = "";
+  PITCH_TYPES.forEach(p => {
+    const tr = document.createElement("tr");
+    const nameTd = document.createElement("td");
+    nameTd.textContent = p;
+    tr.appendChild(nameTd);
+    ["velo", "vert", "horz"].forEach(field => {
+      const td = document.createElement("td");
+      const input = document.createElement("input");
+      input.type = "text";
+      input.inputMode = "numbers-and-punctuation";
+      input.placeholder = "—";
+      input.value = formatField(averages[p][field], field);
+      input.addEventListener("input", () => { averages[p][field] = parseField(input.value); });
+      input.addEventListener("blur", () => { input.value = formatField(averages[p][field], field); });
+      td.appendChild(input);
+      tr.appendChild(td);
+    });
+    avgBody.appendChild(tr);
+  });
+}
+buildTable();
+
+handSeg.addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  [...handSeg.children].forEach(x => x.classList.toggle("on", x === b));
+});
+moundSeg.addEventListener("click", e => {
+  const b = e.target.closest("button");
+  if (!b) return;
+  [...moundSeg.children].forEach(x => x.classList.toggle("on", x === b));
+});
+
+function resetForm() {
+  editingId = null;
+  nameInput.value = "";
+  [...handSeg.children].forEach(x => x.classList.toggle("on", x.dataset.hand === "R"));
+  [...moundSeg.children].forEach(x => x.classList.toggle("on", x.dataset.d === "60.5"));
+  extInput.value = "6.0";
+  relHInput.value = "6.0";
+  averages = {};
+  PITCH_TYPES.forEach(p => { averages[p] = { velo: null, vert: null, horz: null }; });
+  buildTable();
+  saveBtn.textContent = "Save Pitcher";
+  cancelBtn.hidden = true;
+}
+
+function startEdit(p) {
+  editingId = p.id;
+  nameInput.value = p.name;
+  [...handSeg.children].forEach(x => x.classList.toggle("on", x.dataset.hand === p.hand));
+  [...moundSeg.children].forEach(x => x.classList.toggle("on", Number(x.dataset.d) === p.mound));
+  extInput.value = p.ext;
+  relHInput.value = p.relH;
+  averages = {};
+  PITCH_TYPES.forEach(t => { averages[t] = p.averages && p.averages[t] ? Object.assign({}, p.averages[t]) : { velo: null, vert: null, horz: null }; });
+  buildTable();
+  saveBtn.textContent = "Update Pitcher";
+  cancelBtn.hidden = false;
+  nameInput.focus();
+  window.scrollTo({ top: 0, behavior: "smooth" });
+}
+
+cancelBtn.addEventListener("click", resetForm);
+
+saveBtn.addEventListener("click", () => {
+  const name = nameInput.value.trim();
+  if (!name) { nameInput.focus(); return; }
+  const hand = handSeg.querySelector("button.on").dataset.hand;
+  const mound = Number(moundSeg.querySelector("button.on").dataset.d);
+  const ext = Number(extInput.value) || 6.0;
+  const relH = Number(relHInput.value) || 6.0;
+  Store.pitchers.save({
+    id: editingId || Store.uid(),
+    name, hand, mound, ext, relH,
+    averages: JSON.parse(JSON.stringify(averages)),
+    savedAt: Date.now()
+  });
+  resetForm();
+  render();
+});
+
+function formatDate(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " " +
+    d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+
+function render() {
+  const pitchers = Store.pitchers.list();
+  if (!pitchers.length) {
+    listEl.innerHTML = '<div class="empty">No saved pitchers yet - use the form above to add one.</div>';
+    return;
+  }
+  listEl.innerHTML = "";
+  pitchers.forEach(p => {
+    const n = PITCH_TYPES.filter(t => p.averages && p.averages[t] && p.averages[t].velo != null).length;
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML =
+      '<div class="info">' +
+        '<div class="name"></div>' +
+        '<div class="meta"></div>' +
+      '</div>' +
+      '<div class="actions">' +
+        '<button class="btn" data-edit="' + p.id + '">Edit</button>' +
+        '<button class="btn warn" data-del="' + p.id + '">Delete</button>' +
+      '</div>';
+    card.querySelector(".name").textContent = p.name || "Unnamed Pitcher";
+    card.querySelector(".meta").textContent =
+      (p.hand === "L" ? "Left-handed" : "Right-handed") + " · " +
+      n + (n === 1 ? " pitch set" : " pitches set") + " · " +
+      "Mound " + p.mound + " ft" +
+      (p.savedAt ? " · saved " + formatDate(p.savedAt) : "");
+    listEl.appendChild(card);
+  });
+  listEl.querySelectorAll("[data-edit]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      const p = Store.pitchers.get(btn.dataset.edit);
+      if (p) startEdit(p);
+    });
+  });
+  listEl.querySelectorAll("[data-del]").forEach(btn => {
+    btn.addEventListener("click", () => {
+      Store.pitchers.remove(btn.dataset.del);
+      if (editingId === btn.dataset.del) resetForm();
+      render();
+    });
+  });
+}
+render();
+</script>
+</body>
+</html>

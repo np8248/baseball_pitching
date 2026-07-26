@@ -7,32 +7,10 @@
 <meta name="apple-mobile-web-app-status-bar-style" content="default">
 <meta name="theme-color" content="#eef2f6">
 <title>Pitch Predictor</title>
+<link rel="stylesheet" href="lib.css">
 <style>
-  :root {
-    --bg: #eef2f6;
-    --panel: #ffffff;
-    --panel-2: #f1f5f9;
-    --line: #d8e0ea;
-    --ink: #1f2937;
-    --dim: #64748b;
-    --accent: #1d4ed8;
-    --accent-ink: #ffffff;
-    --accent-soft: #eaf0ff;
-    --radius: 16px;
-    --shadow: 0 1px 2px rgba(15,23,42,.04), 0 6px 18px rgba(15,23,42,.06);
-  }
-  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body {
-    margin: 0; padding: 0; background: var(--bg); color: var(--ink);
-    font-family: ui-rounded, "SF Pro Rounded", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    font-weight: 600;
-    overscroll-behavior: none;
-  }
-  body { padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left); }
-
-  .wrap { max-width: 900px; margin: 0 auto; padding: 40px 18px 26px; }
-
-  header.bar { text-align: center; margin-bottom: 34px; }
+  .wrap { padding-top: 40px; }
+  header.bar { display: block; text-align: center; margin-bottom: 34px; }
   .logo { font-size: 34px; font-weight: 800; letter-spacing: -0.5px; color: var(--ink); }
   .logo b { color: var(--accent); }
   .subtitle { color: var(--dim); font-size: 12px; letter-spacing: 1.8px; text-transform: uppercase; font-weight: 700; margin-top: 6px; }
@@ -46,7 +24,6 @@
     padding: 22px; box-shadow: var(--shadow); cursor: pointer;
     font: inherit; width: 100%;
     transition: border-color .14s, transform .06s, box-shadow .14s;
-    position: relative;
   }
   .tile:hover { border-color: #b8c5d6; }
   .tile:active { transform: scale(.98); }
@@ -55,13 +32,6 @@
   .tile .name { font-size: 18px; font-weight: 800; display: block; }
   .tile .desc { font-size: 13px; font-weight: 600; color: var(--dim); margin-top: 4px; display: block; }
   .tile.primary .desc { color: var(--accent-soft); }
-  .tile .soon {
-    position: absolute; top: 16px; right: 16px; font-size: 10px; letter-spacing: 1px; text-transform: uppercase;
-    font-weight: 800; color: var(--dim); background: var(--panel-2); border: 1px solid var(--line);
-    border-radius: 999px; padding: 3px 9px;
-  }
-
-  .status { margin-top: 18px; text-align: center; font-size: 13px; font-weight: 700; color: var(--dim); min-height: 20px; }
 </style>
 </head>
 <body>
@@ -79,44 +49,31 @@
       <span class="desc">Jump straight into the pitch predictor</span>
     </a>
 
-    <button class="tile" data-soon="Save Pitchers will let you keep a library of pitcher arsenals to load into a game without re-entering their averages.">
-      <span class="soon">Soon</span>
+    <a class="tile" href="pitchers.html">
       <span class="icon">&#9993;</span>
       <span class="name">Save Pitchers</span>
       <span class="desc">Build a reusable library of pitcher arsenals</span>
-    </button>
+    </a>
 
-    <button class="tile" data-soon="Save Teams will let you group pitchers and batters into a team roster you can load all at once.">
-      <span class="soon">Soon</span>
+    <a class="tile" href="teams.html">
       <span class="icon">&#128101;</span>
       <span class="name">Save Teams</span>
-      <span class="desc">Group pitchers and batters into a roster</span>
-    </button>
+      <span class="desc">Group pitchers into a roster</span>
+    </a>
 
-    <button class="tile" data-soon="Saved Games will let you pick up an in-progress or past game where you left off, instead of only remembering the last one.">
-      <span class="soon">Soon</span>
+    <a class="tile" href="games.html">
       <span class="icon">&#128190;</span>
       <span class="name">Saved Games</span>
       <span class="desc">Resume a game you started earlier</span>
-    </button>
+    </a>
 
-    <button class="tile" data-soon="Records will track outcomes over time - results by pitch type, count, and matchup.">
-      <span class="soon">Soon</span>
+    <a class="tile" href="records.html">
       <span class="icon">&#128202;</span>
       <span class="name">Records</span>
       <span class="desc">See how your calls have played out</span>
-    </button>
+    </a>
   </div>
 
-  <div class="status" id="status"></div>
-
 </div>
-<script>
-"use strict";
-const statusEl = document.getElementById("status");
-document.querySelectorAll(".tile[data-soon]").forEach(btn => {
-  btn.addEventListener("click", () => { statusEl.textContent = btn.dataset.soon; });
-});
-</script>
 </body>
 </html>
