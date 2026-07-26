@@ -978,7 +978,10 @@ document.querySelectorAll("#resultGrid button").forEach(b => {
       renderAll();
       return;
     }
-    if (r === "whiff") state.timing = "late";
+    if (r === "whiff") {
+      state.timing = "late";
+      [...timingSeg.children].forEach(x => x.classList.toggle("on", x.dataset.t === state.timing));
+    }
     renderCount();
   });
 });
@@ -988,9 +991,7 @@ document.getElementById("firstPitchBtn").addEventListener("click", () => {
   state.balls = 0; state.strikes = 0;
   state.lastLoc = null; state.lastPitchType = null; state.timing = "unknown";
   state.recommendations = recommend();
-  renderCount();
-  renderRecs();
-  renderMaps();
+  renderAll();
 });
 
 /* ---------------- reset ---------------- */
