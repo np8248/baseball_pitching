@@ -701,7 +701,11 @@ function blankCustom() {
 }
 function activeBatter() {
   if (state.batterIdx === CUSTOM_IDX) return state.custom;
-  return BATTERS[state.batterIdx] || null;
+  const b = BATTERS[state.batterIdx] || null;
+  if (b && state.presetNotes[state.batterIdx]) {
+    return Object.assign({}, b, { notes: Object.assign({}, b.notes, state.presetNotes[state.batterIdx]) });
+  }
+  return b;
 }
 
 function oppZone(z) {
@@ -739,6 +743,7 @@ const state = {
   savedBatters: [],          // user-saved batter profiles, persist across sessions
   pitchHistory: [],          // [{type, velo, loc, result, timing}] for current at-bat
   lastResult: null,          // result of the most recent pitch: strike/ball/foul/whiff/out/hit
+  presetNotes: {},           // auto-generated notes for preset batters: {batterIdx: {noteId: true}}
   recommendations: []
 };
 
@@ -752,7 +757,8 @@ function save() {
       averages: state.averages, pitcherHand: state.pitcherHand, batterHand: state.batterHand,
       pitcherName: state.pitcherName, batterIdx: state.batterIdx,
       mound: state.mound, ext: state.ext, relH: state.relH,
-      savedBatters: state.savedBatters
+      savedBatters: state.savedBatters,
+      presetNotes: state.presetNotes
     }));
   } catch (e) { /* private browsing */ }
 }
@@ -770,6 +776,7 @@ function load() {
     if (typeof d.ext === "number" && d.ext >= 2 && d.ext <= 9) state.ext = d.ext;
     if (typeof d.relH === "number" && d.relH >= 2 && d.relH <= 9) state.relH = d.relH;
     if (Array.isArray(d.savedBatters)) state.savedBatters = d.savedBatters;
+    if (d.presetNotes && typeof d.presetNotes === "object") state.presetNotes = d.presetNotes;
   } catch (e) { /* corrupt */ }
 }
 
@@ -1226,6 +1233,64 @@ function renderCount() {
 }
 
 /* ---------------- result buttons (auto-update the count) ---------------- */
+
+/* Analyze pitch history and auto-generate scouting notes that get saved
+   to the batter's profile. Conservative: needs 2+ instances of a pattern. */
+function autoNotesFromHistory() {
+  const hist = state.pitchHistory || [];
+  if (hist.length < 2) return {};
+  const bh = state.batterHand;
+  const auto = {};
+  const swings = hist.filter(h => h.result === "whiff" || h.result === "foul");
+  const whiffs = hist.filter(h => h.result === "whiff");
+  const hits = hist.filter(h => h.result === "hit" || h.result === "out");
+  const balls = hist.filter(h => h.result === "ball");
+  const swLoc = swings.filter(h => h.loc);
+  // chaseHigh / chaseLow
+  if (swLoc.filter(h => h.loc.y < 2).length >= 2) auto.chaseHigh = true;
+  if (swLoc.filter(h => h.loc.y > 3).length >= 2) auto.chaseLow = true;
+  // chaseAway / chaseIn (hand-dependent)
+  const away = bh === "R" ? (x => x <= 1.5) : (x => x >= 3.5);
+  const inside = bh === "R" ? (x => x >= 3.5) : (x => x <= 1.5);
+  if (swLoc.filter(h => away(h.loc.x)).length >= 2) auto.chaseAway = true;
+  if (swLoc.filter(h => inside(h.loc.x)).length >= 2) auto.chaseIn = true;
+  // lateVelo: 2+ whiffs on fastballs or 2+ late timing + a fb whiff
+  const fbWhiffs = whiffs.filter(h => REF[h.type] && REF[h.type].fam === "fastball");
+  const lateCnt = hist.filter(h => h.timing === "late").length;
+  if (fbWhiffs.length >= 2 || (lateCnt >= 2 && fbWhiffs.length >= 1)) auto.lateVelo = true;
+  // outFront: 2+ early timing
+  if (hist.filter(h => h.timing === "early").length >= 2) auto.outFront = true;
+  // weakBreaking: 2+ whiffs on breaking
+  if (whiffs.filter(h => REF[h.type] && REF[h.type].fam === "breaking").length >= 2) auto.weakBreaking = true;
+  // sitsFastball: 2+ hits on non-fastballs
+  if (hits.filter(h => REF[h.type] && REF[h.type].fam !== "fastball").length >= 2) auto.sitsFastball = true;
+  // sitsSoft: 2+ hits on fastballs
+  if (hits.filter(h => REF[h.type] && REF[h.type].fam === "fastball").length >= 2) auto.sitsSoft = true;
+  // patient: 2+ balls taken and first pitch was a take
+  if (balls.length >= 2 && hist[0] && hist[0].result === "ball") auto.patient = true;
+  // firstSwing: swung at the first pitch
+  if (hist[0] && hist[0].result !== "ball" && hist[0].result !== "strike") auto.firstSwing = true;
+  return auto;
+}
+
+/* Save auto-generated notes to the active batter's profile. */
+function applyAutoNotes() {
+  const auto = autoNotesFromHistory();
+  if (Object.keys(auto).length === 0) return;
+  if (state.batterIdx === CUSTOM_IDX) {
+    if (state.custom) {
+      Object.assign(state.custom.notes, auto);
+      // also update matching saved batter if one exists
+      const idx = state.savedBatters.findIndex(b => b.name === state.custom.name);
+      if (idx >= 0) Object.assign(state.savedBatters[idx].notes, auto);
+    }
+  } else {
+    if (!state.presetNotes[state.batterIdx]) state.presetNotes[state.batterIdx] = {};
+    Object.assign(state.presetNotes[state.batterIdx], auto);
+  }
+  save();
+}
+
 const resultGrid = document.getElementById("resultGrid");
 resultGrid.addEventListener("click", e => {
   const b = e.target.closest("button");
@@ -1254,7 +1319,8 @@ resultGrid.addEventListener("click", e => {
   } else if (r === "foul") {
     if (state.strikes < 2) state.strikes++;
   } else if (r === "out" || r === "hit") {
-    // at-bat over - reset for the next batter
+    // at-bat over - auto-save scouting notes, then reset for the next batter
+    applyAutoNotes();
     state.balls = 0; state.strikes = 0;
     state.lastLoc = null; state.lastPitchType = null; state.timing = "unknown";
     state.recommendations = []; state.custom = null;
@@ -1294,6 +1360,7 @@ document.getElementById("fullReset").addEventListener("click", () => {
   state.balls = 0; state.strikes = 0; state.lastLoc = null; state.lastPitchType = null;
   state.timing = "unknown"; state.recommendations = [];
   state.pitchHistory = []; state.lastResult = null;
+  state.presetNotes = {};
   try { localStorage.removeItem(STORE_KEY); } catch (e) {}
   buildTable();
   renderAll();
@@ -1623,11 +1690,11 @@ function scorePitch(pitch) {
     const calledStrikes = sameType.filter(h => h.result === "strike").length;
     const balls = sameType.filter(h => h.result === "ball").length;
 
-    if (whiffs > 0) { const pts = whiffs * 8; score += pts; reasons.push("He whiffed at " + (whiffs === 1 ? "this pitch" : whiffs + " of these") + " this at-bat - go back to it <span class='pos'>+" + pts + "</span>"); }
-    if (hits > 0) { const pts = hits * 8; score -= pts; reasons.push("He " + (hits === 1 ? "put this in play" : "put " + hits + " of these in play") + " this at-bat - avoid it <span class='neg'>-" + pts + "</span>"); }
-    if (fouls > 0) { const pts = fouls * 4; score -= pts; reasons.push("He fouled off " + (fouls === 1 ? "this pitch" : fouls + " of these") + " - he's on it <span class='neg'>-" + pts + "</span>"); }
-    if (calledStrikes > 0 && !whiffs) { const pts = calledStrikes * 4; score += pts; reasons.push("Took " + (calledStrikes === 1 ? "this pitch" : calledStrikes + " of these") + " for a called strike - it worked <span class='pos'>+" + pts + "</span>"); }
-    if (balls > 0 && !whiffs && !calledStrikes) { const pts = balls * 3; score -= pts; reasons.push("" + (balls === 1 ? "This pitch" : balls + " of these") + " missed the zone - don't repeat it <span class='neg'>-" + pts + "</span>"); }
+    if (whiffs > 0) { const pts = whiffs * 5; score += pts; reasons.push("He whiffed at " + (whiffs === 1 ? "this pitch" : whiffs + " of these") + " this at-bat - it's been effective <span class='pos'>+" + pts + "</span>"); }
+    if (hits > 0) { const pts = hits * 6; score -= pts; reasons.push("He " + (hits === 1 ? "put this in play" : "put " + hits + " of these in play") + " this at-bat - he's seen it well <span class='neg'>-" + pts + "</span>"); }
+    if (fouls > 0) { const pts = fouls * 3; score -= pts; reasons.push("He fouled off " + (fouls === 1 ? "this pitch" : fouls + " of these") + " - he's timing it <span class='neg'>-" + pts + "</span>"); }
+    if (calledStrikes > 0 && !whiffs) { const pts = calledStrikes * 3; score += pts; reasons.push("Took " + (calledStrikes === 1 ? "this pitch" : calledStrikes + " of these") + " for a called strike - it caught the zone <span class='pos'>+" + pts + "</span>"); }
+    if (balls > 0 && !whiffs && !calledStrikes) { const pts = balls * 2; score -= pts; reasons.push("" + (balls === 1 ? "This pitch" : balls + " of these") + " missed the zone - be careful <span class='neg'>-" + pts + "</span>"); }
 
     // location history: did he chase or hit in this area?
     if (state.lastLoc) {
