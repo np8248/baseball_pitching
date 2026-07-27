@@ -9,7 +9,7 @@
 <title>Pitch Predictor</title>
 <link rel="stylesheet" href="lib.css">
 <style>
-  .wrap { padding-top: 40px; }
+  .home-wrap { padding-top: 40px; }
   header.bar { display: block; text-align: center; margin-bottom: 34px; }
   .logo { font-size: 34px; font-weight: 800; letter-spacing: -0.5px; color: var(--ink); }
   .logo b { color: var(--accent); }
@@ -32,11 +32,54 @@
   .tile .name { font-size: 18px; font-weight: 800; display: block; }
   .tile .desc { font-size: 13px; font-weight: 600; color: var(--dim); margin-top: 4px; display: block; }
   .tile.primary .desc { color: var(--accent-soft); }
+
+  /* ---- slide-up sheets: layer on top of the home screen, no navigation ---- */
+  .sheet {
+    position: fixed; inset: 0; z-index: 40; background: var(--bg);
+    transform: translateY(100%); transition: transform .3s cubic-bezier(.16,1,.3,1);
+    overflow-y: auto; box-shadow: 0 -12px 40px rgba(15,23,42,.18);
+    -webkit-overflow-scrolling: touch;
+  }
+  .sheet.open { transform: translateY(0); }
+  .sheet-bar {
+    display: flex; align-items: center; gap: 12px; padding: 16px 18px;
+    position: sticky; top: 0; background: var(--bg); border-bottom: 1px solid var(--line); z-index: 2;
+  }
+  .sheet-bar .back {
+    background: var(--panel-2); border: 1px solid var(--line); border-radius: 999px;
+    padding: 8px 14px; font-size: 13px; font-weight: 800; color: var(--dim); cursor: pointer;
+  }
+  .sheet-bar .back:hover { color: var(--accent); border-color: var(--accent); }
+  .sheet-title { font-size: 17px; font-weight: 800; color: var(--ink); }
+  .sheet-body { padding: 18px; max-width: 900px; margin: 0 auto 40px; }
+
+  .avg-table { width: 100%; border-collapse: separate; border-spacing: 0 6px; margin-top: 4px; }
+  .avg-table th { font-size: 10px; letter-spacing: 1px; color: var(--dim); text-transform: uppercase; text-align: center; font-weight: 800; padding-bottom: 4px; }
+  .avg-table th:first-child { text-align: left; padding-left: 10px; }
+  .avg-table td { background: var(--panel-2); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); text-align: center; padding: 0; }
+  .avg-table td:first-child { border-left: 1px solid var(--line); border-radius: 10px 0 0 10px; text-align: left; padding-left: 12px; font-size: 13px; font-weight: 700; }
+  .avg-table td:last-child { border-right: 1px solid var(--line); border-radius: 0 10px 10px 0; }
+  .avg-table input { width: 100%; background: none; border: none; color: var(--ink); font: inherit; text-align: center; padding: 10px 4px; font-size: 14px; font-weight: 700; }
+  .avg-table input:focus { outline: none; background: var(--accent-soft); }
+  .avg-table input::placeholder { color: #b8c5d6; }
+  .num-row { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  textarea.text { min-height: 70px; resize: vertical; font-family: inherit; }
+
+  .result-tag { font-size: 10px; letter-spacing: .5px; text-transform: uppercase; font-weight: 800;
+    padding: 3px 8px; border-radius: 999px; display: inline-block; }
+  .result-tag.strike, .result-tag.whiff { background: #fff1f2; color: var(--danger); }
+  .result-tag.ball { background: var(--accent-soft); color: var(--accent); }
+  .result-tag.foul { background: #fffbeb; color: #b45309; }
+  .result-tag.out { background: #fef2f2; color: #7f1d1d; }
+  .result-tag.hit, .result-tag.win { background: #ecfdf5; color: var(--good); }
+  .result-tag.loss { background: #fff1f2; color: var(--danger); }
+  .result-tag.progress { background: var(--accent-soft); color: var(--accent); }
 </style>
 </head>
 <body>
-<div class="wrap">
 
+<!-- ============ HOME ============ -->
+<div class="wrap home-wrap" id="homeView">
   <header class="bar">
     <div class="logo">Pitch<b>Predictor</b></div>
     <div class="subtitle">Home</div>
@@ -49,31 +92,683 @@
       <span class="desc">Jump straight into the pitch predictor</span>
     </a>
 
-    <a class="tile" href="pitchers.html">
+    <button class="tile" data-open="sheetPitchers">
       <span class="icon">&#9993;</span>
       <span class="name">Save Pitchers</span>
       <span class="desc">Build a reusable library of pitcher arsenals</span>
-    </a>
+    </button>
 
-    <a class="tile" href="teams.html">
+    <button class="tile" data-open="sheetTeams">
       <span class="icon">&#128101;</span>
       <span class="name">Save Teams</span>
       <span class="desc">Group pitchers into a roster</span>
-    </a>
+    </button>
 
-    <a class="tile" href="games.html">
+    <button class="tile" data-open="sheetGames">
       <span class="icon">&#128190;</span>
       <span class="name">Saved Games</span>
-      <span class="desc">Resume a game you started earlier</span>
-    </a>
+      <span class="desc">Keep a log of games you've played</span>
+    </button>
 
-    <a class="tile" href="records.html">
+    <button class="tile" data-open="sheetRecords">
       <span class="icon">&#128202;</span>
       <span class="name">Records</span>
       <span class="desc">See how your calls have played out</span>
-    </a>
+    </button>
   </div>
-
 </div>
+
+<!-- ============ SAVE PITCHERS ============ -->
+<div class="sheet" id="sheetPitchers">
+  <div class="sheet-bar"><button class="back" data-close>&larr; Home</button><div class="sheet-title">Save Pitchers</div></div>
+  <div class="sheet-body">
+    <div class="panel">
+      <div class="hint" style="margin-bottom:14px;">A library of pitcher arsenals - a cheat sheet you keep here and read from when you set a pitcher up in a game.</div>
+
+      <div class="field">
+        <label for="pit_name">Pitcher name</label>
+        <input class="text" type="text" id="pit_name" placeholder="e.g. John Doe" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Handedness</label>
+        <div class="chip-pick" id="pit_hand">
+          <button data-hand="L">Left</button>
+          <button data-hand="R" class="on">Right</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Mound Distance &middot; ft</label>
+        <div class="chip-pick" id="pit_mound">
+          <button data-d="46">46</button>
+          <button data-d="50">50</button>
+          <button data-d="54">54</button>
+          <button data-d="60.5" class="on">60.5</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>Release Geometry &middot; ft</label>
+        <div class="num-row">
+          <input class="text" type="number" id="pit_ext" min="3" max="8" step="0.1" value="6.0" placeholder="Extension">
+          <input class="text" type="number" id="pit_relh" min="3" max="8" step="0.1" value="6.0" placeholder="Release Height">
+        </div>
+      </div>
+      <div class="field">
+        <label>Average Movements</label>
+        <table class="avg-table">
+          <thead><tr><th>Pitch</th><th>Velo</th><th>Vert</th><th>Horz</th></tr></thead>
+          <tbody id="pit_avgBody"></tbody>
+        </table>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn primary" id="pit_saveBtn">Save Pitcher</button>
+        <button class="btn ghost" id="pit_cancelBtn" hidden>Cancel Edit</button>
+      </div>
+    </div>
+    <div id="pit_list" style="margin-top:14px;"></div>
+  </div>
+</div>
+
+<!-- ============ SAVE TEAMS ============ -->
+<div class="sheet" id="sheetTeams">
+  <div class="sheet-bar"><button class="back" data-close>&larr; Home</button><div class="sheet-title">Save Teams</div></div>
+  <div class="sheet-body">
+    <div class="panel">
+      <div class="field">
+        <label for="team_name">Team name</label>
+        <input class="text" type="text" id="team_name" placeholder="e.g. Eastside Little League" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Pitchers on this team</label>
+        <div class="chip-pick" id="team_picker"></div>
+      </div>
+      <button class="btn primary" id="team_create">Create Team</button>
+    </div>
+    <div id="team_list" style="margin-top:14px;"></div>
+  </div>
+</div>
+
+<!-- ============ SAVED GAMES ============ -->
+<div class="sheet" id="sheetGames">
+  <div class="sheet-bar"><button class="back" data-close>&larr; Home</button><div class="sheet-title">Saved Games</div></div>
+  <div class="sheet-body">
+    <div class="panel">
+      <div class="hint" style="margin-bottom:14px;">A log of games you've played - who you pitched, who you faced, how it went.</div>
+      <div class="field">
+        <label for="game_label">Label</label>
+        <input class="text" type="text" id="game_label" placeholder="e.g. vs Eastside, Sat 10am" autocomplete="off">
+      </div>
+      <div class="field">
+        <label for="game_pitcher">Pitcher</label>
+        <input class="text" type="text" id="game_pitcher" placeholder="Pitcher name" autocomplete="off" list="game_pitcherNames">
+        <datalist id="game_pitcherNames"></datalist>
+      </div>
+      <div class="field">
+        <label for="game_opponent">Opponent</label>
+        <input class="text" type="text" id="game_opponent" placeholder="Team or batter faced" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Result</label>
+        <div class="chip-pick" id="game_result">
+          <button data-r="progress" class="on">In Progress</button>
+          <button data-r="win">Win</button>
+          <button data-r="loss">Loss</button>
+        </div>
+      </div>
+      <div class="field">
+        <label for="game_notes">Notes</label>
+        <textarea class="text" id="game_notes" placeholder="What worked, what to remember for next time..."></textarea>
+      </div>
+      <div style="display:flex; gap:8px;">
+        <button class="btn primary" id="game_saveBtn">Save Game</button>
+        <button class="btn ghost" id="game_cancelBtn" hidden>Cancel Edit</button>
+      </div>
+    </div>
+    <div id="game_list" style="margin-top:14px;"></div>
+  </div>
+</div>
+
+<!-- ============ RECORDS ============ -->
+<div class="sheet" id="sheetRecords">
+  <div class="sheet-bar">
+    <button class="back" data-close>&larr; Home</button>
+    <div class="sheet-title">Records</div>
+    <button class="btn warn" id="rec_clearBtn" style="margin-left:auto;">Clear Records</button>
+  </div>
+  <div class="sheet-body">
+    <div class="panel">
+      <div class="hint" style="margin-bottom:14px;">Log a pitch result by hand to build up your records over time.</div>
+      <div class="field">
+        <label for="rec_pitcher">Pitcher</label>
+        <input class="text" type="text" id="rec_pitcher" placeholder="Pitcher name" autocomplete="off" list="rec_pitcherNames">
+        <datalist id="rec_pitcherNames"></datalist>
+      </div>
+      <div class="field">
+        <label for="rec_batter">Batter</label>
+        <input class="text" type="text" id="rec_batter" placeholder="Batter faced" autocomplete="off">
+      </div>
+      <div class="field">
+        <label>Pitch Type</label>
+        <div class="chip-pick" id="rec_pitchType"></div>
+      </div>
+      <div class="field">
+        <label>Result</label>
+        <div class="chip-pick" id="rec_result">
+          <button data-r="strike">Strike</button>
+          <button data-r="ball">Ball</button>
+          <button data-r="foul">Foul</button>
+          <button data-r="whiff">Whiff</button>
+          <button data-r="out">Out</button>
+          <button data-r="hit">Hit</button>
+        </div>
+      </div>
+      <button class="btn primary" id="rec_addBtn">Add Pitch</button>
+    </div>
+    <div id="rec_body" style="margin-top:14px;"></div>
+  </div>
+</div>
+
+<script src="store.js"></script>
+<script>
+"use strict";
+const PITCH_TYPES = ["4 Seam", "Sinker", "Cutter", "Gyro", "Sweeper", "Curve", "Split", "Change"];
+
+function formatDate(ts) {
+  if (!ts) return "";
+  const d = new Date(ts);
+  return d.toLocaleDateString(undefined, { month: "short", day: "numeric" }) + " " +
+    d.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+}
+function parseField(str) {
+  const s = String(str).trim().replace(/^\+/, "");
+  if (s === "" || s === "-") return null;
+  const n = Number(s);
+  return Number.isFinite(n) ? n : null;
+}
+function formatField(v, field) {
+  if (v == null) return "";
+  if (field === "velo") return String(v);
+  return (v > 0 ? "+" : "") + v;
+}
+
+/* ---------------- sheet navigation: layer on top, no page loads ---------------- */
+document.querySelectorAll("[data-open]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    document.getElementById(btn.dataset.open).classList.add("open");
+    document.body.style.overflow = "hidden";
+  });
+});
+document.querySelectorAll(".sheet [data-close]").forEach(btn => {
+  btn.addEventListener("click", () => {
+    btn.closest(".sheet").classList.remove("open");
+    document.body.style.overflow = "";
+  });
+});
+document.addEventListener("keydown", e => {
+  if (e.key !== "Escape") return;
+  document.querySelectorAll(".sheet.open").forEach(s => s.classList.remove("open"));
+  document.body.style.overflow = "";
+});
+
+/* ================= SAVE PITCHERS ================= */
+(function () {
+  const nameInput = document.getElementById("pit_name");
+  const handSeg = document.getElementById("pit_hand");
+  const moundSeg = document.getElementById("pit_mound");
+  const extInput = document.getElementById("pit_ext");
+  const relHInput = document.getElementById("pit_relh");
+  const avgBody = document.getElementById("pit_avgBody");
+  const saveBtn = document.getElementById("pit_saveBtn");
+  const cancelBtn = document.getElementById("pit_cancelBtn");
+  const listEl = document.getElementById("pit_list");
+
+  let editingId = null;
+  let averages = {};
+  PITCH_TYPES.forEach(p => { averages[p] = { velo: null, vert: null, horz: null }; });
+
+  function buildTable() {
+    avgBody.innerHTML = "";
+    PITCH_TYPES.forEach(p => {
+      const tr = document.createElement("tr");
+      const nameTd = document.createElement("td");
+      nameTd.textContent = p;
+      tr.appendChild(nameTd);
+      ["velo", "vert", "horz"].forEach(field => {
+        const td = document.createElement("td");
+        const input = document.createElement("input");
+        input.type = "text";
+        input.inputMode = "numbers-and-punctuation";
+        input.placeholder = "—";
+        input.value = formatField(averages[p][field], field);
+        input.addEventListener("input", () => { averages[p][field] = parseField(input.value); });
+        input.addEventListener("blur", () => { input.value = formatField(averages[p][field], field); });
+        td.appendChild(input);
+        tr.appendChild(td);
+      });
+      avgBody.appendChild(tr);
+    });
+  }
+  buildTable();
+
+  handSeg.addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    [...handSeg.children].forEach(x => x.classList.toggle("on", x === b));
+  });
+  moundSeg.addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    [...moundSeg.children].forEach(x => x.classList.toggle("on", x === b));
+  });
+
+  function resetForm() {
+    editingId = null;
+    nameInput.value = "";
+    [...handSeg.children].forEach(x => x.classList.toggle("on", x.dataset.hand === "R"));
+    [...moundSeg.children].forEach(x => x.classList.toggle("on", x.dataset.d === "60.5"));
+    extInput.value = "6.0";
+    relHInput.value = "6.0";
+    averages = {};
+    PITCH_TYPES.forEach(p => { averages[p] = { velo: null, vert: null, horz: null }; });
+    buildTable();
+    saveBtn.textContent = "Save Pitcher";
+    cancelBtn.hidden = true;
+  }
+
+  function startEdit(p) {
+    editingId = p.id;
+    nameInput.value = p.name;
+    [...handSeg.children].forEach(x => x.classList.toggle("on", x.dataset.hand === p.hand));
+    [...moundSeg.children].forEach(x => x.classList.toggle("on", Number(x.dataset.d) === p.mound));
+    extInput.value = p.ext;
+    relHInput.value = p.relH;
+    averages = {};
+    PITCH_TYPES.forEach(t => { averages[t] = p.averages && p.averages[t] ? Object.assign({}, p.averages[t]) : { velo: null, vert: null, horz: null }; });
+    buildTable();
+    saveBtn.textContent = "Update Pitcher";
+    cancelBtn.hidden = false;
+    nameInput.focus();
+  }
+  cancelBtn.addEventListener("click", resetForm);
+
+  saveBtn.addEventListener("click", () => {
+    const name = nameInput.value.trim();
+    if (!name) { nameInput.focus(); return; }
+    const hand = handSeg.querySelector("button.on").dataset.hand;
+    const mound = Number(moundSeg.querySelector("button.on").dataset.d);
+    const ext = Number(extInput.value) || 6.0;
+    const relH = Number(relHInput.value) || 6.0;
+    Store.pitchers.save({
+      id: editingId || Store.uid(),
+      name, hand, mound, ext, relH,
+      averages: JSON.parse(JSON.stringify(averages)),
+      savedAt: Date.now()
+    });
+    resetForm();
+    render();
+    window.PitchersUI.refreshPickers();
+  });
+
+  function render() {
+    const pitchers = Store.pitchers.list();
+    if (!pitchers.length) {
+      listEl.innerHTML = '<div class="empty">No saved pitchers yet - use the form above to add one.</div>';
+      return;
+    }
+    listEl.innerHTML = "";
+    pitchers.forEach(p => {
+      const n = PITCH_TYPES.filter(t => p.averages && p.averages[t] && p.averages[t].velo != null).length;
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML =
+        '<div class="info"><div class="name"></div><div class="meta"></div></div>' +
+        '<div class="actions">' +
+          '<button class="btn" data-edit="' + p.id + '">Edit</button>' +
+          '<button class="btn warn" data-del="' + p.id + '">Delete</button>' +
+        '</div>';
+      card.querySelector(".name").textContent = p.name || "Unnamed Pitcher";
+      card.querySelector(".meta").textContent =
+        (p.hand === "L" ? "Left-handed" : "Right-handed") + " · " +
+        n + (n === 1 ? " pitch set" : " pitches set") + " · " +
+        "Mound " + p.mound + " ft" +
+        (p.savedAt ? " · saved " + formatDate(p.savedAt) : "");
+      listEl.appendChild(card);
+    });
+    listEl.querySelectorAll("[data-edit]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const p = Store.pitchers.get(btn.dataset.edit);
+        if (p) startEdit(p);
+      });
+    });
+    listEl.querySelectorAll("[data-del]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        Store.pitchers.remove(btn.dataset.del);
+        if (editingId === btn.dataset.del) resetForm();
+        render();
+        window.PitchersUI.refreshPickers();
+      });
+    });
+  }
+  render();
+  window.PitchersUI = { render, refreshPickers: () => {} }; // wired for real once Teams/Games/Records exist, below
+})();
+
+/* ================= SAVE TEAMS ================= */
+(function () {
+  const nameInput = document.getElementById("team_name");
+  const pickerEl = document.getElementById("team_picker");
+  const listEl = document.getElementById("team_list");
+  const selected = new Set();
+
+  function renderPicker() {
+    const pitchers = Store.pitchers.list();
+    if (!pitchers.length) {
+      pickerEl.innerHTML = '<div class="hint">No saved pitchers yet - add one in Save Pitchers first, then come back to build a team.</div>';
+      return;
+    }
+    pickerEl.innerHTML = "";
+    pitchers.forEach(p => {
+      const btn = document.createElement("button");
+      btn.textContent = p.name || "Unnamed Pitcher";
+      btn.dataset.id = p.id;
+      btn.classList.toggle("on", selected.has(p.id));
+      btn.addEventListener("click", () => {
+        if (selected.has(p.id)) selected.delete(p.id); else selected.add(p.id);
+        btn.classList.toggle("on", selected.has(p.id));
+      });
+      pickerEl.appendChild(btn);
+    });
+  }
+
+  document.getElementById("team_create").addEventListener("click", () => {
+    const name = nameInput.value.trim();
+    if (!name) { nameInput.focus(); return; }
+    Store.teams.save({ id: Store.uid(), name, pitcherIds: [...selected], savedAt: Date.now() });
+    nameInput.value = "";
+    selected.clear();
+    renderPicker();
+    renderTeams();
+  });
+
+  function renderTeams() {
+    const teams = Store.teams.list();
+    const pitchersById = {};
+    Store.pitchers.list().forEach(p => { pitchersById[p.id] = p; });
+
+    if (!teams.length) {
+      listEl.innerHTML = '<div class="empty">No saved teams yet.</div>';
+      return;
+    }
+    listEl.innerHTML = "";
+    teams.forEach(team => {
+      const card = document.createElement("div");
+      card.className = "panel";
+      const roster = (team.pitcherIds || []).map(id => pitchersById[id]).filter(Boolean);
+      const rosterHtml = roster.length
+        ? roster.map(p => '<span class="btn ghost">' + (p.name || "Unnamed Pitcher") +
+            ' <span class="hint">(' + (p.hand === "L" ? "L" : "R") + 'HP)</span></span>').join(" ")
+        : '<span class="hint">No pitchers on this team yet.</span>';
+      card.innerHTML =
+        '<div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">' +
+          '<div class="name" style="font-size:16px; font-weight:800;"></div>' +
+          '<div class="hint" style="margin-left:auto;"></div>' +
+          '<button class="btn warn" data-del="' + team.id + '">Delete</button>' +
+        '</div>' +
+        '<div class="chip-pick">' + rosterHtml + '</div>';
+      card.querySelector(".name").textContent = team.name;
+      card.querySelector(".hint").textContent = roster.length + (roster.length === 1 ? " pitcher" : " pitchers") +
+        (team.savedAt ? " · saved " + formatDate(team.savedAt) : "");
+      listEl.appendChild(card);
+    });
+    listEl.querySelectorAll("[data-del]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        Store.teams.remove(btn.dataset.del);
+        renderTeams();
+      });
+    });
+  }
+
+  renderPicker();
+  renderTeams();
+  window.TeamsUI = { renderPicker, renderTeams };
+})();
+
+/* ================= SAVED GAMES ================= */
+(function () {
+  const labelInput = document.getElementById("game_label");
+  const pitcherInput = document.getElementById("game_pitcher");
+  const opponentInput = document.getElementById("game_opponent");
+  const resultSeg = document.getElementById("game_result");
+  const notesInput = document.getElementById("game_notes");
+  const saveBtn = document.getElementById("game_saveBtn");
+  const cancelBtn = document.getElementById("game_cancelBtn");
+  const listEl = document.getElementById("game_list");
+  const pitcherNamesEl = document.getElementById("game_pitcherNames");
+  const RESULT_LABEL = { win: "Win", loss: "Loss", progress: "In Progress" };
+
+  let editingId = null;
+
+  function refreshPitcherNames() {
+    pitcherNamesEl.innerHTML = Store.pitchers.list().map(p => '<option value="' + p.name + '">').join("");
+  }
+  refreshPitcherNames();
+
+  resultSeg.addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    [...resultSeg.children].forEach(x => x.classList.toggle("on", x === b));
+  });
+
+  function resetForm() {
+    editingId = null;
+    labelInput.value = "";
+    pitcherInput.value = "";
+    opponentInput.value = "";
+    notesInput.value = "";
+    [...resultSeg.children].forEach(x => x.classList.toggle("on", x.dataset.r === "progress"));
+    saveBtn.textContent = "Save Game";
+    cancelBtn.hidden = true;
+  }
+
+  function startEdit(g) {
+    editingId = g.id;
+    labelInput.value = g.label || "";
+    pitcherInput.value = g.pitcher || "";
+    opponentInput.value = g.opponent || "";
+    notesInput.value = g.notes || "";
+    [...resultSeg.children].forEach(x => x.classList.toggle("on", x.dataset.r === (g.result || "progress")));
+    saveBtn.textContent = "Update Game";
+    cancelBtn.hidden = false;
+    labelInput.focus();
+  }
+  cancelBtn.addEventListener("click", resetForm);
+
+  saveBtn.addEventListener("click", () => {
+    const label = labelInput.value.trim();
+    if (!label) { labelInput.focus(); return; }
+    Store.games.save({
+      id: editingId || Store.uid(),
+      label,
+      pitcher: pitcherInput.value.trim(),
+      opponent: opponentInput.value.trim(),
+      result: resultSeg.querySelector("button.on").dataset.r,
+      notes: notesInput.value.trim(),
+      savedAt: Date.now()
+    });
+    resetForm();
+    render();
+  });
+
+  function render() {
+    const games = Store.games.list();
+    if (!games.length) {
+      listEl.innerHTML = '<div class="empty">No saved games yet - use the form above to log one.</div>';
+      return;
+    }
+    listEl.innerHTML = "";
+    games.forEach(g => {
+      const card = document.createElement("div");
+      card.className = "card";
+      card.innerHTML =
+        '<div class="info"><div class="name"></div><div class="meta"></div></div>' +
+        '<div class="actions">' +
+          '<button class="btn" data-edit="' + g.id + '">Edit</button>' +
+          '<button class="btn warn" data-del="' + g.id + '">Delete</button>' +
+        '</div>';
+      card.querySelector(".name").innerHTML = (g.label || "Untitled Game") +
+        ' <span class="result-tag ' + (g.result || "progress") + '">' + RESULT_LABEL[g.result || "progress"] + '</span>';
+      const bits = [];
+      if (g.pitcher) bits.push("Pitcher: " + g.pitcher);
+      if (g.opponent) bits.push("vs " + g.opponent);
+      bits.push("saved " + formatDate(g.savedAt));
+      card.querySelector(".meta").textContent = bits.join(" · ") + (g.notes ? " · \"" + g.notes.slice(0, 60) + (g.notes.length > 60 ? "..." : "") + "\"" : "");
+      listEl.appendChild(card);
+    });
+    listEl.querySelectorAll("[data-edit]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const g = Store.games.get(btn.dataset.edit);
+        if (g) startEdit(g);
+      });
+    });
+    listEl.querySelectorAll("[data-del]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        Store.games.remove(btn.dataset.del);
+        if (editingId === btn.dataset.del) resetForm();
+        render();
+      });
+    });
+  }
+  render();
+  window.GamesUI = { render, refreshPitcherNames };
+})();
+
+/* ================= RECORDS ================= */
+(function () {
+  const bodyEl = document.getElementById("rec_body");
+  const pitcherInput = document.getElementById("rec_pitcher");
+  const batterInput = document.getElementById("rec_batter");
+  const pitchTypeSeg = document.getElementById("rec_pitchType");
+  const resultSeg = document.getElementById("rec_result");
+  const addBtn = document.getElementById("rec_addBtn");
+  const pitcherNamesEl = document.getElementById("rec_pitcherNames");
+
+  function refreshPitcherNames() {
+    pitcherNamesEl.innerHTML = Store.pitchers.list().map(p => '<option value="' + p.name + '">').join("");
+  }
+  refreshPitcherNames();
+
+  PITCH_TYPES.forEach((t, i) => {
+    const btn = document.createElement("button");
+    btn.textContent = t;
+    btn.dataset.t = t;
+    if (i === 0) btn.classList.add("on");
+    pitchTypeSeg.appendChild(btn);
+  });
+  pitchTypeSeg.addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    [...pitchTypeSeg.children].forEach(x => x.classList.toggle("on", x === b));
+  });
+  let selectedResult = null;
+  resultSeg.addEventListener("click", e => {
+    const b = e.target.closest("button");
+    if (!b) return;
+    selectedResult = b.dataset.r;
+    [...resultSeg.children].forEach(x => x.classList.toggle("on", x === b));
+  });
+
+  addBtn.addEventListener("click", () => {
+    if (!selectedResult) { resultSeg.querySelector("button").focus(); return; }
+    Store.records.save({
+      id: Store.uid(),
+      ts: Date.now(),
+      pitcherName: pitcherInput.value.trim() || "Unnamed Pitcher",
+      batterName: batterInput.value.trim() || "Unknown",
+      pitchType: pitchTypeSeg.querySelector("button.on").dataset.t,
+      intent: null,
+      locationName: null,
+      result: selectedResult
+    });
+    batterInput.value = "";
+    selectedResult = null;
+    [...resultSeg.children].forEach(x => x.classList.remove("on"));
+    render();
+  });
+
+  function render() {
+    const records = Store.records.list();
+    if (!records.length) {
+      bodyEl.innerHTML = '<div class="panel"><div class="hint">No pitches logged yet - use the form above to add one.</div></div>';
+      return;
+    }
+    const swingResults = ["whiff", "foul", "out", "hit"];
+    const swings = records.filter(r => swingResults.includes(r.result)).length;
+    const whiffs = records.filter(r => r.result === "whiff").length;
+    const outs = records.filter(r => r.result === "out").length;
+    const hits = records.filter(r => r.result === "hit").length;
+
+    const stats = [
+      { num: records.length, lbl: "Pitches Logged" },
+      { num: swings ? Math.round(whiffs / swings * 100) + "%" : "-", lbl: "Whiff Rate" },
+      { num: outs, lbl: "Outs" },
+      { num: hits, lbl: "Hits Allowed" }
+    ];
+
+    const byType = {};
+    records.forEach(r => {
+      const t = r.pitchType || "Unknown";
+      if (!byType[t]) byType[t] = { thrown: 0, strike: 0, ball: 0, foul: 0, whiff: 0, out: 0, hit: 0 };
+      byType[t].thrown++;
+      if (byType[t][r.result] != null) byType[t][r.result]++;
+    });
+    const typeRows = Object.keys(byType).sort((a, b) => byType[b].thrown - byType[a].thrown).map(t => {
+      const c = byType[t];
+      return "<tr><td>" + t + "</td><td>" + c.thrown + "</td><td>" + c.strike + "</td><td>" + c.ball + "</td>" +
+        "<td>" + c.foul + "</td><td>" + c.whiff + "</td><td>" + c.out + "</td><td>" + c.hit + "</td></tr>";
+    }).join("");
+
+    const recentRows = records.slice(0, 50).map(r => {
+      return "<tr><td>" + formatDate(r.ts) + "</td><td>" + (r.pitcherName || "-") + "</td>" +
+        "<td>" + (r.batterName || "-") + "</td><td>" + (r.pitchType || "-") + "</td>" +
+        '<td><span class="result-tag ' + r.result + '">' + r.result + "</span></td>" +
+        '<td><button class="btn warn" data-del="' + r.id + '" style="padding:6px 10px; font-size:11px;">Delete</button></td></tr>';
+    }).join("");
+
+    bodyEl.innerHTML =
+      '<div class="stat-row">' + stats.map(s => '<div class="stat"><div class="num">' + s.num + '</div><div class="lbl">' + s.lbl + '</div></div>').join("") + '</div>' +
+      '<div class="panel">' +
+        '<div style="font-size:12px; letter-spacing:1px; text-transform:uppercase; font-weight:800; color:var(--dim); margin-bottom:10px;">By Pitch Type</div>' +
+        '<div style="overflow-x:auto;"><table class="recs"><thead><tr><th>Pitch</th><th>Thrown</th><th>Strike</th><th>Ball</th><th>Foul</th><th>Whiff</th><th>Out</th><th>Hit</th></tr></thead>' +
+        '<tbody>' + typeRows + '</tbody></table></div>' +
+      '</div>' +
+      '<div class="panel" style="margin-top:12px;">' +
+        '<div style="font-size:12px; letter-spacing:1px; text-transform:uppercase; font-weight:800; color:var(--dim); margin-bottom:10px;">Recent Pitches</div>' +
+        '<div style="overflow-x:auto;"><table class="recs"><thead><tr><th>When</th><th>Pitcher</th><th>Batter</th><th>Pitch</th><th>Result</th><th></th></tr></thead>' +
+        '<tbody>' + recentRows + '</tbody></table></div>' +
+      '</div>';
+
+    bodyEl.querySelectorAll("[data-del]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        Store.records.remove(btn.dataset.del);
+        render();
+      });
+    });
+  }
+
+  document.getElementById("rec_clearBtn").addEventListener("click", () => {
+    Store.records.clear();
+    render();
+  });
+
+  render();
+  window.RecordsUI = { render, refreshPitcherNames };
+})();
+
+/* wire cross-module refreshes now that Teams/Games/Records exist */
+window.PitchersUI.refreshPickers = () => {
+  window.TeamsUI.renderPicker();
+  window.GamesUI.refreshPitcherNames();
+  window.RecordsUI.refreshPitcherNames();
+};
+</script>
 </body>
 </html>
