@@ -1262,8 +1262,8 @@ function autoTendenciesFromHistory() {
   swLoc.filter(h => h.loc.y < 2).forEach(h => add("chaseHigh", h.result === "whiff" ? 1.5 : 1));
   swLoc.filter(h => h.loc.y > 3).forEach(h => add("chaseLow", h.result === "whiff" ? 1.5 : 1));
   // chaseAway / chaseIn
-  const away = bh === "R" ? (x => x <= 1.5) : (x => x >= 3.5);
-  const inside = bh === "R" ? (x => x >= 3.5) : (x => x <= 1.5);
+  const away = bh === "R" ? (x => x >= 3.5) : (x => x <= 1.5);
+  const inside = bh === "R" ? (x => x <= 1.5) : (x => x >= 3.5);
   swLoc.filter(h => away(h.loc.x)).forEach(h => add("chaseAway", h.result === "whiff" ? 1.5 : 1));
   swLoc.filter(h => inside(h.loc.x)).forEach(h => add("chaseIn", h.result === "whiff" ? 1.5 : 1));
   // lateVelo: whiffs on fastballs or late timing
@@ -1523,8 +1523,8 @@ function timingError(fl, prev) {
 function locName(col, row, hand) {
   const v = row <= 1 ? "Up" : (row >= 3 ? "Down" : "Mid");
   let s;
-  if (hand === "R") s = col >= 3 ? "In" : (col <= 1 ? "Away" : "Mid");
-  else s = col <= 1 ? "In" : (col >= 3 ? "Away" : "Mid");
+  if (hand === "R") s = col <= 1 ? "In" : (col >= 3 ? "Away" : "Mid");
+  else s = col >= 3 ? "In" : (col <= 1 ? "Away" : "Mid");
   if (v === "Mid" && s === "Mid") return "Middle Middle";
   if (s === "Mid") return v + " & Middle";
   if (v === "Mid") return "Middle & " + s;
@@ -1614,13 +1614,13 @@ function scorePitch(pitch) {
   // --- 5. recommended location ---
   let col = 2, row = 2;
   if (pitch === "4 Seam") { col = 2; row = 0; }
-  else if (pitch === "Sinker") { col = bh === "R" ? 1 : 3; row = 4; }
-  else if (pitch === "Cutter") { col = bh === "R" ? 3 : 1; row = 2; }
-  else if (pitch === "Gyro") { if (sameHand) { col = bh === "R" ? 3 : 1; row = 4; } else { col = 2; row = 4; } }
-  else if (pitch === "Sweeper") { col = sameHand ? (bh === "R" ? 1 : 3) : (bh === "R" ? 3 : 1); row = 3; }
+  else if (pitch === "Sinker") { col = bh === "R" ? 3 : 1; row = 4; }
+  else if (pitch === "Cutter") { col = bh === "R" ? 1 : 3; row = 2; }
+  else if (pitch === "Gyro") { if (sameHand) { col = bh === "R" ? 1 : 3; row = 4; } else { col = 2; row = 4; } }
+  else if (pitch === "Sweeper") { col = sameHand ? (bh === "R" ? 3 : 1) : (bh === "R" ? 1 : 3); row = 3; }
   else if (pitch === "Curve") { col = 2; row = 4; }
   else if (pitch === "Split") { col = 2; row = 3; }
-  else if (pitch === "Change") { col = bh === "R" ? 1 : 3; row = 4; }
+  else if (pitch === "Change") { col = bh === "R" ? 3 : 1; row = 4; }
 
   if (isHittersCount) { col = Math.max(1, Math.min(3, col)); row = Math.max(1, Math.min(3, row)); }
   if (isPitchersCount && (fam === "breaking" || fam === "offspeed")) row = Math.max(row, 4);
@@ -1653,8 +1653,8 @@ function scorePitch(pitch) {
     const mult = isFirstPitch ? 1.6 : 1;
     const zv = row <= 1 ? "high" : row >= 3 ? "low" : "mid";
     let zh;
-    if (bh === "R") zh = col >= 3 ? "close" : col <= 1 ? "far" : "mid";
-    else zh = col <= 1 ? "close" : col >= 3 ? "far" : "mid";
+    if (bh === "R") zh = col <= 1 ? "close" : col >= 3 ? "far" : "mid";
+    else zh = col >= 3 ? "close" : col <= 1 ? "far" : "mid";
     const inHot = (zv === hot.v) && (hot.h === "mid" ? zh === "mid" : zh === hot.h);
     const inCold = (zv === cold.v) && (cold.h === "mid" ? zh === "mid" : zh === cold.h);
     if (inHot) {
@@ -1663,8 +1663,8 @@ function scorePitch(pitch) {
       reasons.push("Lands in " + (batter.name || "batter") + "'s hot zone (" + zoneLabel(hot.v, hot.h) + ") - avoid it" + (isFirstPitch ? " (first pitch, 1.6x)" : "") + " <span class='neg'>-" + pts + "</span>");
       const cy = cold.v === "high" ? 0.5 : cold.v === "low" ? 4.5 : 2.5;
       let cx = 2.5;
-      if (bh === "R") cx = cold.h === "close" ? 4.0 : cold.h === "far" ? 1.0 : 2.5;
-      else cx = cold.h === "close" ? 1.0 : cold.h === "far" ? 4.0 : 2.5;
+      if (bh === "R") cx = cold.h === "close" ? 1.0 : cold.h === "far" ? 4.0 : 2.5;
+      else cx = cold.h === "close" ? 4.0 : cold.h === "far" ? 1.0 : 2.5;
       x = x + (cx - x) * 0.35;
       y = y + (cy - y) * 0.35;
     } else if (inCold) {
@@ -1675,8 +1675,8 @@ function scorePitch(pitch) {
   }
 
   // --- 6b. scouting notes on the profile ---
-  const away = bh === "R" ? x < 2 : x > 3;
-  const inside = bh === "R" ? x > 3 : x < 2;
+  const away = bh === "R" ? x > 3 : x < 2;
+  const inside = bh === "R" ? x < 2 : x > 3;
   const isFirst = (state.balls === 0 && state.strikes === 0);
   if (batter && batter.notes) {
     const n = batter.notes;
